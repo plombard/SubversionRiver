@@ -1,1 +1,25 @@
-This file was created by IntelliJ IDEA 12.0 for binding GitHub repository
+h1. Subversion River for ElasticSearch
+
+Subversion River plugin for "ElasticSearch":http://www.elasticsearch.org/
+
+h2. Getting Started
+
+h3. Installation
+
+After downloading the sources, run the task @mvn package@.
+
+Use the elasticsearch plugin manager to install the plugin :
+<pre>
+$ /path-to/elasticsearch/bin/plugin -url file:./target/release/elasticsearch-river-subversion-0.20.1.zip -install river-subversion
+</pre>
+
+h3. Creating a Subversion river
+
+
+h2. Credits
+
+These sources borrows *heavily* from :
+- SVNKit examples : http://wiki.svnkit.com/Managing_Repository_With_SVNKit
+- ElasticSearch plugins how-to : http://jfarrell.github.com/
+- ElasticSearch RSS River : https://github.com/dadoonet/rssriver
+- ElasticSearch Confluence River : https://github.com/obazoud/elasticsearch-river-confluence
