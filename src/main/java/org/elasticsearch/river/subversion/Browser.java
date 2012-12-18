@@ -17,7 +17,7 @@ import java.util.List;
  */
 public class Browser {
 
-    public static List<SVNDocument> SvnList(String repos, String path) {
+    public static List<SVNDocument> SvnList(String repos, String path, long lastRevision) {
         List<SVNDocument> result = new ArrayList<SVNDocument>();
         FSRepositoryFactory.setup();
         SVNRepository repository;
@@ -25,6 +25,14 @@ public class Browser {
             repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
             System.out.println( "Repository Root: " + repository.getRepositoryRoot(true) );
             System.out.println(  "Repository UUID: " + repository.getRepositoryUUID(true) );
+            System.out.println(  "Repository HEAD Revision: " + repository.getLatestRevision() );
+            // If the actual latest revision is not greater than the presumed latest revision
+            // we don't do anything
+            if(repository.getLatestRevision() <= lastRevision) {
+                return result;
+            } else {
+                lastRevision = repository.getLatestRevision();
+            }
             listEntriesRecursive(repository, path, result);
         } catch (SVNException e) {
             e.printStackTrace();

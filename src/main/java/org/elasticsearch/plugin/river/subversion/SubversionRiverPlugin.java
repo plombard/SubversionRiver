@@ -26,7 +26,7 @@ public class SubversionRiverPlugin extends AbstractPlugin {
 
     @Override public void processModule(Module module) {
         if (module instanceof RiversModule) {
-            ((RiversModule) module).registerRiver("subversion", SubversionRiverModule.class);
+            ((RiversModule) module).registerRiver("svn", SubversionRiverModule.class);
         }
     }
 }

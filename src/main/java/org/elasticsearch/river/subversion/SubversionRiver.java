@@ -20,6 +20,7 @@ import static org.elasticsearch.client.Requests.indexRequest;
 /**
  * River for SVN repositories
  */
+// TODO : implement integration tests
 public class SubversionRiver extends AbstractRiverComponent implements River {
 
     private Client client;
@@ -31,6 +32,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private String repos;
     private String path;
     private int updateRate;
+    private int bulkSize;
+    private long lastRevision;
 
     private volatile boolean closed;
     private volatile Thread indexerThread;
@@ -43,22 +46,24 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         this.client = client;
         this.threadPool = threadPool;
         this.riverIndexName = riverIndexName;
-        if (settings.settings().containsKey("subversion")) {
-            Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("subversion");
+        if (settings.settings().containsKey("svn")) {
+            Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("svn");
 
             repos = XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null);
             path = XContentMapValues.nodeStringValue(subversionSettings.get("path"), "/");
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
-
             indexName = riverName.name();
-            typeName = "page";
+            typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
+            bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
+            lastRevision = XContentMapValues.nodeLongValue(subversionSettings.get("last_revision"), 0);
         }
     }
 
     @Override
     public void start() {
-        logger.info("Starting Subversion River: repos [{}], path [{}], updateRate [{}], indexing to [{}]/[{}]",
-                repos, path, updateRate, indexName, typeName);
+        logger.info("Starting Subversion River: repos [{}], path [{}], updateRate [{}], bulksize [{}], " +
+                "lastRevision [{}], indexing to [{}]/[{}]",
+                repos, path, updateRate, bulkSize, lastRevision, indexName, typeName);
         try {
             client.admin().indices().prepareCreate(indexName).execute().actionGet();
         } catch (Exception e) {
@@ -72,7 +77,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             }
         }
 
-        indexerThread = EsExecutors.daemonThreadFactory(settings.globalSettings(), "subversion_river_indexer").newThread(new Indexer());
+        indexerThread = EsExecutors.daemonThreadFactory(settings.globalSettings(), "subversion_river_indexer")
+                .newThread(new Indexer());
         indexerThread.start();
     }
 
@@ -90,7 +96,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
         // TODO: implement bulk size
         // TODO: implement basic mapping
-        // TODO: stop it from looping (implement diff updates)
+        // TODO: stop it from looping (diff updates ?)
+        // TODO: implement diff updates
         @Override
         public void run() {
             while (true) {
@@ -102,13 +109,17 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
                     BulkRequestBuilder bulk = client.prepareBulk();
 
-                    List<SVNDocument> result = Browser.SvnList(repos,path);
+                    List<SVNDocument> result = Browser.SvnList(repos,path, lastRevision);
+                    if(result.isEmpty()) {
+                        logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
+                                lastRevision, repos, path);
+                    }
                     for( SVNDocument svnDocument:result ) {
                         logger.info("Document added to queue :{}",svnDocument.toJson());
                         bulk.add(indexRequest(indexName)
                                 .type(typeName)
-                                .id(Integer.toString(svnDocument.hashCode()))
-                                .source(svnDocument.toJson()));
+                                .id(svnDocument.id())
+                                .source(svnDocument.json()));
                     }
 
                     try {
