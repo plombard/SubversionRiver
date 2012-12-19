@@ -33,7 +33,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private String path;
     private int updateRate;
     private int bulkSize;
-    private long lastRevision;
+    private long indexedRevision;
 
     private volatile boolean closed;
     private volatile Thread indexerThread;
@@ -55,15 +55,14 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             indexName = riverName.name();
             typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
             bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
-            lastRevision = XContentMapValues.nodeLongValue(subversionSettings.get("last_revision"), 0);
         }
     }
 
     @Override
     public void start() {
         logger.info("Starting Subversion River: repos [{}], path [{}], updateRate [{}], bulksize [{}], " +
-                "lastRevision [{}], indexing to [{}]/[{}]",
-                repos, path, updateRate, bulkSize, lastRevision, indexName, typeName);
+                "indexedRevision [{}], indexing to [{}]/[{}]",
+                repos, path, updateRate, bulkSize, indexedRevision, indexName, typeName);
         try {
             client.admin().indices().prepareCreate(indexName).execute().actionGet();
         } catch (Exception e) {
@@ -95,8 +94,6 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private class Indexer implements Runnable {
 
         // TODO: implement bulk size
-        // TODO: implement basic mapping
-        // TODO: stop it from looping (diff updates ?)
         // TODO: implement diff updates
         @Override
         public void run() {
@@ -106,30 +103,41 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 }
 
                 try {
+
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
                     BulkRequestBuilder bulk = client.prepareBulk();
 
-                    List<SVNDocument> result = Browser.SvnList(repos,path, lastRevision);
-                    if(result.isEmpty()) {
+                    long lastRevision = Browser.getLastRevision(repos, path);
+                    logger.info("Checking last revision of repository : {}/{} --> [{}]", repos, path, lastRevision);
+                    // If lastRevision is strictly superior to indexedRevision,
+                    // there have been updates to the repository, so we index them
+                    if( lastRevision > indexedRevision) {
+                        List<SVNDocument> result = Browser.SvnList(repos,path);
+                        for( SVNDocument svnDocument:result ) {
+                            logger.debug("Document added to queue :{}",svnDocument.json());
+                            bulk.add(indexRequest(indexName)
+                                    .type(typeName)
+                                    .id(svnDocument.id())
+                                    .source(svnDocument.json()));
+                        }
+
+                        indexedRevision = lastRevision;
+                        logger.info("Indexed revision [{}] of repository : {}/{} --> [{}]", indexedRevision, repos, path);
+                    } else {
                         logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
-                                lastRevision, repos, path);
-                    }
-                    for( SVNDocument svnDocument:result ) {
-                        logger.info("Document added to queue :{}",svnDocument.toJson());
-                        bulk.add(indexRequest(indexName)
-                                .type(typeName)
-                                .id(svnDocument.id())
-                                .source(svnDocument.json()));
+                                indexedRevision, repos, path);
                     }
 
-                    try {
-                        logger.info("Execute bulk {} actions", bulk.numberOfActions());
-                        BulkResponse response = bulk.execute().actionGet();
-                        if (response.hasFailures()) {
-                            logger.warn("failed to execute" + response.buildFailureMessage());
+                    if(bulk.numberOfActions() > 0) {
+                        try {
+                            logger.info("Execute bulk {} actions", bulk.numberOfActions());
+                            BulkResponse response = bulk.execute().actionGet();
+                            if (response.hasFailures()) {
+                                logger.warn("failed to execute" + response.buildFailureMessage());
+                            }
+                        } catch (Exception e) {
+                            logger.warn("failed to execute bulk", e);
                         }
-                    } catch (Exception e) {
-                        logger.warn("failed to execute bulk", e);
                     }
                 } catch (Exception e) {
                     logger.warn("Subversion river exception", e);

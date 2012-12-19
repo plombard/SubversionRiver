@@ -1,6 +1,8 @@
 package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Charsets;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.Loggers;
 import org.tmatesoft.svn.core.*;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
 import org.tmatesoft.svn.core.io.SVNRepository;
@@ -17,26 +19,29 @@ import java.util.List;
  */
 public class Browser {
 
-    public static List<SVNDocument> SvnList(String repos, String path, long lastRevision) {
+    private static ESLogger logger = Loggers.getLogger(Browser.class);
+
+    public static long getLastRevision(String repos, String path) throws SVNException {
+        long result;
+        FSRepositoryFactory.setup();
+        SVNRepository repository;
+        repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
+        logger.info( "Repository Root: " + repository.getRepositoryRoot(true) );
+        logger.info(  "Repository UUID: " + repository.getRepositoryUUID(true) );
+        logger.info(  "Repository HEAD Revision: " + repository.getLatestRevision() );
+
+        return repository.getLatestRevision();
+    }
+
+    public static List<SVNDocument> SvnList(String repos, String path) throws SVNException {
         List<SVNDocument> result = new ArrayList<SVNDocument>();
         FSRepositoryFactory.setup();
         SVNRepository repository;
-        try {
-            repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
-            System.out.println( "Repository Root: " + repository.getRepositoryRoot(true) );
-            System.out.println(  "Repository UUID: " + repository.getRepositoryUUID(true) );
-            System.out.println(  "Repository HEAD Revision: " + repository.getLatestRevision() );
-            // If the actual latest revision is not greater than the presumed latest revision
-            // we don't do anything
-            if(repository.getLatestRevision() <= lastRevision) {
-                return result;
-            } else {
-                lastRevision = repository.getLatestRevision();
-            }
-            listEntriesRecursive(repository, path, result);
-        } catch (SVNException e) {
-            e.printStackTrace();
-        }
+        repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
+        logger.debug( "Repository Root: " + repository.getRepositoryRoot(true) );
+        logger.debug(  "Repository UUID: " + repository.getRepositoryUUID(true) );
+
+        listEntriesRecursive(repository, path, result);
 
         return result;
     }
