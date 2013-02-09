@@ -107,18 +107,23 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
                     BulkRequestBuilder bulk = client.prepareBulk();
 
-                    long lastRevision = Browser.getLastRevision(repos, path);
+                    long lastRevision = SubversionCrawler.getLastRevision(repos, path);
                     logger.info("Checking last revision of repository : {}/{} --> [{}]", repos, path, lastRevision);
                     // If lastRevision is strictly superior to indexedRevision,
                     // there have been updates to the repository, so we index them
                     if( lastRevision > indexedRevision) {
-                        List<SVNDocument> result = Browser.SvnList(repos,path);
-                        for( SVNDocument svnDocument:result ) {
-                            logger.debug("Document added to queue :{}",svnDocument.json());
+
+                        // For data consistency, we delete every reference to documents
+                        // in that path, as they'll be parsed and added next.
+                        // If we don't, we'd have to deal with deleted files still referenced in the index.
+
+                        List<SubversionDocument> result = SubversionCrawler.SvnList(repos, path);
+                        for( SubversionDocument svnDocument:result ) {
                             bulk.add(indexRequest(indexName)
                                     .type(typeName)
                                     .id(svnDocument.id())
                                     .source(svnDocument.json()));
+                            logger.debug("Document added to queue :{}",svnDocument.json());
                         }
 
                         indexedRevision = lastRevision;

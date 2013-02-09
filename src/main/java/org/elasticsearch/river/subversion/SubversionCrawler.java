@@ -9,6 +9,7 @@ import org.tmatesoft.svn.core.io.SVNRepository;
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -17,9 +18,9 @@ import java.util.List;
 /**
  * Container for SVN repository browsing
  */
-public class Browser {
+public class SubversionCrawler {
 
-    private static ESLogger logger = Loggers.getLogger(Browser.class);
+    private static ESLogger logger = Loggers.getLogger(SubversionCrawler.class);
 
     public static long getLastRevision(String repos, String path) throws SVNException {
         long result;
@@ -33,8 +34,8 @@ public class Browser {
         return repository.getLatestRevision();
     }
 
-    public static List<SVNDocument> SvnList(String repos, String path) throws SVNException {
-        List<SVNDocument> result = new ArrayList<SVNDocument>();
+    public static List<SubversionDocument> SvnList(String repos, String path) throws SVNException {
+        List<SubversionDocument> result = new ArrayList<SubversionDocument>();
         FSRepositoryFactory.setup();
         SVNRepository repository;
         repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
@@ -55,12 +56,12 @@ public class Browser {
      * @throws SVNException
      */
     @SuppressWarnings("unchecked")
-    public static void listEntriesRecursive( SVNRepository repository, String path, List<SVNDocument> list ) throws SVNException {
+    public static void listEntriesRecursive( SVNRepository repository, String path, List<SubversionDocument> list ) throws SVNException {
          for(SVNDirEntry entry:(Collection<SVNDirEntry>)repository.getDir( path, -1 , null , (Collection) null )) {
             if ( entry.getKind() == SVNNodeKind.DIR ) {
                 listEntriesRecursive(repository, (path.equals("")) ? entry.getName() : path + "/" + entry.getName(), list);
             } else {
-                SVNDocument svnDocument = new SVNDocument(entry, repository, path);
+                SubversionDocument svnDocument = new SubversionDocument(entry, repository, path);
                 list.add(svnDocument);
             }
         }
@@ -81,8 +82,8 @@ public class Browser {
             return null;
         }
         SVNProperties fileProperties = new SVNProperties();
-        ByteArrayOutputStream baos = new ByteArrayOutputStream( );
-        String filePath = path+"/"+entry.getRelativePath();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        String filePath = path.concat(File.separator).concat(entry.getRelativePath());
 
         try {
             SVNNodeKind kind = repository.checkPath( filePath , entry.getRevision());
@@ -90,11 +91,11 @@ public class Browser {
             if(!kind.equals(SVNNodeKind.FILE)) {
                 return null;
             }
-            repository.getFile( filePath , entry.getRevision() , fileProperties , baos );
+            repository.getFile( filePath , entry.getRevision() , fileProperties , outputStream );
             String mimeType = fileProperties.getStringValue(SVNProperty.MIME_TYPE);
             boolean isTextType = SVNProperty.isTextMimeType( mimeType );
             if(isTextType) {
-                content = baos.toString(Charsets.UTF_8.name());
+                content = outputStream.toString(Charsets.UTF_8.name());
             }
 
         } catch (SVNException e) {
