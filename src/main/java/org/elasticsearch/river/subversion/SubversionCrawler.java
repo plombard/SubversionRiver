@@ -1,6 +1,7 @@
 package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Objects;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.tmatesoft.svn.core.*;
@@ -22,8 +23,14 @@ public class SubversionCrawler {
 
     private static ESLogger logger = Loggers.getLogger(SubversionCrawler.class);
 
-    public static long getLastRevision(String repos, String path) throws SVNException {
-        long result;
+    /**
+     * Return the latest revision of a SVN directory
+     * @param repos repository
+     * @param path path to the directory
+     * @return latest revision
+     * @throws SVNException
+     */
+    public static long getLatestRevision(String repos, String path) throws SVNException {
         FSRepositoryFactory.setup();
         SVNRepository repository;
         repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
@@ -31,10 +38,12 @@ public class SubversionCrawler {
         logger.info(  "Repository UUID: " + repository.getRepositoryUUID(true) );
         logger.info(  "Repository HEAD Revision: " + repository.getLatestRevision() );
 
-        return repository.getLatestRevision();
+        // call getDir() at HEAD revision,
+        // no commit messages or entries necessary
+        return repository.getDir(path,-1,false,null).getRevision();
     }
 
-    public static List<SubversionDocument> SvnList(String repos, String path) throws SVNException {
+    public static List<SubversionDocument> SvnList(String repos, String path, Long revision) throws SVNException {
         List<SubversionDocument> result = new ArrayList<SubversionDocument>();
         FSRepositoryFactory.setup();
         SVNRepository repository;
@@ -42,7 +51,9 @@ public class SubversionCrawler {
         logger.debug( "Repository Root: " + repository.getRepositoryRoot(true) );
         logger.debug(  "Repository UUID: " + repository.getRepositoryUUID(true) );
 
-        listEntriesRecursive(repository, path, result);
+        // list entries at specified revision,
+        // or HEAD if revision is null
+        listEntriesRecursive(repository, path, result, Objects.firstNonNull(revision, Long.valueOf(-1)));
 
         return result;
     }
@@ -53,13 +64,15 @@ public class SubversionCrawler {
      *
      * @param repository  repos to explore
      * @param path starting path
+     * @param list SVNDocument list to populate
+     * @param revision revision to fetch
      * @throws SVNException
      */
     @SuppressWarnings("unchecked")
-    public static void listEntriesRecursive( SVNRepository repository, String path, List<SubversionDocument> list ) throws SVNException {
-         for(SVNDirEntry entry:(Collection<SVNDirEntry>)repository.getDir( path, -1 , null , (Collection) null )) {
+    private static void listEntriesRecursive( SVNRepository repository, String path, List<SubversionDocument> list, Long revision ) throws SVNException {
+         for(SVNDirEntry entry:(Collection<SVNDirEntry>)repository.getDir( path, revision , null , (Collection) null )) {
             if ( entry.getKind() == SVNNodeKind.DIR ) {
-                listEntriesRecursive(repository, (path.equals("")) ? entry.getName() : path + "/" + entry.getName(), list);
+                listEntriesRecursive(repository, (path.equals("")) ? entry.getName() : path + "/" + entry.getName(), list, revision);
             } else {
                 SubversionDocument svnDocument = new SubversionDocument(entry, repository, path);
                 list.add(svnDocument);

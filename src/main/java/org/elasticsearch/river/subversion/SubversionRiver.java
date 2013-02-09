@@ -107,7 +107,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
                     BulkRequestBuilder bulk = client.prepareBulk();
 
-                    long lastRevision = SubversionCrawler.getLastRevision(repos, path);
+                    long lastRevision = SubversionCrawler.getLatestRevision(repos, path);
                     logger.info("Checking last revision of repository : {}/{} --> [{}]", repos, path, lastRevision);
                     // If lastRevision is strictly superior to indexedRevision,
                     // there have been updates to the repository, so we index them
@@ -117,7 +117,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         // in that path, as they'll be parsed and added next.
                         // If we don't, we'd have to deal with deleted files still referenced in the index.
 
-                        List<SubversionDocument> result = SubversionCrawler.SvnList(repos, path);
+                        List<SubversionDocument> result = SubversionCrawler.SvnList(repos, path, lastRevision);
                         for( SubversionDocument svnDocument:result ) {
                             bulk.add(indexRequest(indexName)
                                     .type(typeName)
