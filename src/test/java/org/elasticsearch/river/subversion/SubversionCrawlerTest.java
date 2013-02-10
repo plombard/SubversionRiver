@@ -5,6 +5,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.tmatesoft.svn.core.SVNException;
 
+import java.io.File;
+import java.net.URISyntaxException;
 import java.util.List;
 
 /**
@@ -12,12 +14,13 @@ import java.util.List;
  */
 public class SubversionCrawlerTest {
 
-    private String repos;
+    private File repos;
     private String path;
 
     @Before
-    public void setUp() {
-        repos = "file:///D:/repos/TEST_REPOS";
+    public void setUp() throws URISyntaxException {
+        repos = new File(Thread.currentThread().getContextClassLoader()
+                .getResource("TEST_REPOS").toURI());
         path = "module1/trunk";
     }
 

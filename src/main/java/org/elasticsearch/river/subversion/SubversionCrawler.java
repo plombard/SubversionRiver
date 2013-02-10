@@ -30,10 +30,10 @@ public class SubversionCrawler {
      * @return latest revision
      * @throws SVNException
      */
-    public static long getLatestRevision(String repos, String path) throws SVNException {
+    public static long getLatestRevision(File repos, String path) throws SVNException {
         FSRepositoryFactory.setup();
         SVNRepository repository;
-        repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
+        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
         logger.info( "Repository Root: " + repository.getRepositoryRoot(true) );
         logger.info(  "Repository UUID: " + repository.getRepositoryUUID(true) );
         logger.info(  "Repository HEAD Revision: " + repository.getLatestRevision() );
@@ -43,17 +43,17 @@ public class SubversionCrawler {
         return repository.getDir(path,-1,false,null).getRevision();
     }
 
-    public static List<SubversionDocument> SvnList(String repos, String path, Long revision) throws SVNException {
+    public static List<SubversionDocument> SvnList(File repos, String path, Long revision) throws SVNException {
         List<SubversionDocument> result = new ArrayList<SubversionDocument>();
         FSRepositoryFactory.setup();
         SVNRepository repository;
-        repository = SVNRepositoryFactory.create(SVNURL.parseURIDecoded(repos));
+        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
         logger.debug( "Repository Root: " + repository.getRepositoryRoot(true) );
         logger.debug(  "Repository UUID: " + repository.getRepositoryUUID(true) );
 
         // list entries at specified revision,
         // or HEAD if revision is null
-        listEntriesRecursive(repository, path, result, Objects.firstNonNull(revision, Long.valueOf(-1)));
+        listEntriesRecursive(repository, path, result, Objects.firstNonNull(revision, (long) -1));
 
         return result;
     }

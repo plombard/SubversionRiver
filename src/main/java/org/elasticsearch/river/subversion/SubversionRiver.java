@@ -12,6 +12,7 @@ import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.river.*;
 import org.elasticsearch.threadpool.ThreadPool;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 
@@ -29,7 +30,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private String riverIndexName;
     private String indexName = null;
     private String typeName = null;
-    private String repos;
+    private File repos;
     private String path;
     private int updateRate;
     private int bulkSize;
@@ -49,7 +50,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         if (settings.settings().containsKey("svn")) {
             Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("svn");
 
-            repos = XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null);
+            repos = new File(XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null));
             path = XContentMapValues.nodeStringValue(subversionSettings.get("path"), "/");
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
             indexName = riverName.name();
@@ -152,6 +153,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     logger.debug("Subversion river is going to sleep for {} ms", updateRate);
                     Thread.sleep(updateRate);
                 } catch (InterruptedException e) {
+                    logger.warn("Subversion river interrupted", e);
                 }
 
             }
