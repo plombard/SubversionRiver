@@ -40,8 +40,11 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private volatile Thread indexerThread;
 
     @Inject
-    protected SubversionRiver(RiverName riverName, RiverSettings settings, @RiverIndexName String riverIndexName,
-                              Client client, ThreadPool threadPool) {
+    protected SubversionRiver(RiverName riverName,
+                              RiverSettings settings,
+                              @RiverIndexName String riverIndexName,
+                              Client client,
+                              ThreadPool threadPool) {
         super(riverName, settings);
         logger.info("Creating subversion river");
         this.client = client;
@@ -161,7 +164,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     logger.debug("Subversion river is going to sleep for {} ms", updateRate);
                     Thread.sleep(updateRate);
                 } catch (InterruptedException e) {
-                    logger.warn("Subversion river interrupted", e);
+                    // we shamefully swallow the interrupted exception
+                    logger.warn("Subversion river interrupted");
                 }
 
             }
