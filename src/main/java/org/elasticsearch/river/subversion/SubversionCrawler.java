@@ -34,15 +34,23 @@ public class SubversionCrawler {
         FSRepositoryFactory.setup();
         SVNRepository repository;
         repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
-        logger.info( "Repository Root: " + repository.getRepositoryRoot(true) );
-        logger.info(  "Repository UUID: " + repository.getRepositoryUUID(true) );
-        logger.info(  "Repository HEAD Revision: " + repository.getLatestRevision() );
+        logger.debug("Repository Root: " + repository.getRepositoryRoot(true));
+        logger.debug("Repository UUID: " + repository.getRepositoryUUID(true));
+        logger.debug("Repository HEAD Revision: " + repository.getLatestRevision());
 
         // call getDir() at HEAD revision,
         // no commit messages or entries necessary
         return repository.getDir(path,-1,false,null).getRevision();
     }
 
+    /**
+     * Find and retrieve the elements under the svn path specified.
+     * @param repos repository
+     * @param path svn path to inspect
+     * @param revision revision to retrieve, leave null or -1 for HEAD
+     * @return the list of items in the svn path at the specified revision
+     * @throws SVNException
+     */
     public static List<SubversionDocument> SvnList(File repos, String path, Long revision) throws SVNException {
         List<SubversionDocument> result = new ArrayList<SubversionDocument>();
         FSRepositoryFactory.setup();
