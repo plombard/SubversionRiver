@@ -99,7 +99,7 @@
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>3.8.1</version>
+            <version>4.10</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -107,6 +107,7 @@
             <artifactId>elasticsearch</artifactId>
             <version>${elasticsearch.version}</version>
         </dependency>
+        <!-- SVNKit for SVN operations through Java API -->
         <dependency>
             <groupId>org.tmatesoft.svnkit</groupId>
             <artifactId>svnkit</artifactId>
@@ -116,7 +117,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>14.0-rc1</version>
+            <version>14.0-rc2</version>
         </dependency>
         <!--  Gson: Java to Json conversion -->
         <dependency>
@@ -124,6 +125,12 @@
             <artifactId>gson</artifactId>
             <version>2.2.2</version>
             <scope>compile</scope>
+        </dependency>
+        <!-- For simpler elasticsearch tests -->
+        <dependency>
+            <groupId>com.github.tlrx</groupId>
+            <artifactId>elasticsearch-test</artifactId>
+            <version>0.0.7</version>
         </dependency>
     </dependencies>
 

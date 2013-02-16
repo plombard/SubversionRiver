@@ -11,17 +11,8 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module-library" scope="TEST">
-      <library name="maven-surefire-plugin urls">
-        <CLASSES>
-          <root url="file://$MODULE_DIR$/target/classes/conf" />
-          <root url="file://$MODULE_DIR$/target/lib" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
-    <orderEntry type="library" scope="TEST" name="Maven: junit:junit:3.8.1" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: junit:junit:4.10" level="project" />
+    <orderEntry type="library" scope="TEST" name="Maven: org.hamcrest:hamcrest-core:1.1" level="project" />
     <orderEntry type="library" name="Maven: org.elasticsearch:elasticsearch:0.20.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.lucene:lucene-core:3.6.1" level="project" />
     <orderEntry type="library" name="Maven: org.apache.lucene:lucene-analyzers:3.6.1" level="project" />
@@ -34,8 +25,9 @@
     <orderEntry type="library" name="Maven: com.trilead:trilead-ssh2:1.0.0-build215" level="project" />
     <orderEntry type="library" name="Maven: org.tmatesoft.sqljet:sqljet:1.1.2" level="project" />
     <orderEntry type="library" name="Maven: org.antlr:antlr-runtime:3.4" level="project" />
-    <orderEntry type="library" name="Maven: com.google.guava:guava:14.0-rc1" level="project" />
+    <orderEntry type="library" name="Maven: com.google.guava:guava:14.0-rc2" level="project" />
     <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.2.2" level="project" />
+    <orderEntry type="library" name="Maven: com.github.tlrx:elasticsearch-test:0.0.7" level="project" />
   </component>
 </module>
 
