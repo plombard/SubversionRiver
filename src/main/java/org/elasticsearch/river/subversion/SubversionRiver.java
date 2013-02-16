@@ -30,7 +30,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private String riverIndexName;
     private String indexName = null;
     private String typeName = null;
-    private File repos;
+    private String repos;
     private String path;
     private int updateRate;
     private int bulkSize;
@@ -48,9 +48,10 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         this.threadPool = threadPool;
         this.riverIndexName = riverIndexName;
         if (settings.settings().containsKey("svn")) {
+            @SuppressWarnings("unchecked")
             Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("svn");
 
-            repos = new File(XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null));
+            repos = XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null);
             path = XContentMapValues.nodeStringValue(subversionSettings.get("path"), "/");
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
             indexName = riverName.name();
@@ -106,10 +107,15 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 try {
 
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
+                    File reposAsFile = new File(Thread.currentThread()
+                            .getContextClassLoader()
+                            .getResource(repos)
+                            .toURI()
+                    );
                     BulkRequestBuilder bulk = client.prepareBulk();
 
-                    long lastRevision = SubversionCrawler.getLatestRevision(repos, path);
-                    logger.info("Checking last revision of repository : {}/{} --> [{}]", repos, path, lastRevision);
+                    long lastRevision = SubversionCrawler.getLatestRevision(reposAsFile, path);
+                    logger.info("Checking last revision of repository : {}/{} --> [{}]", reposAsFile, path, lastRevision);
                     // If lastRevision is strictly superior to indexedRevision,
                     // there have been updates to the repository, so we index them
                     if( lastRevision > indexedRevision) {
@@ -118,7 +124,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         // in that path, as they'll be parsed and added next.
                         // If we don't, we'd have to deal with deleted files still referenced in the index.
 
-                        List<SubversionDocument> result = SubversionCrawler.SvnList(repos, path, lastRevision);
+                        List<SubversionDocument> result =
+                                SubversionCrawler.SvnList(reposAsFile, path, lastRevision);
+
                         for( SubversionDocument svnDocument:result ) {
                             bulk.add(indexRequest(indexName)
                                     .type(typeName)
@@ -128,10 +136,10 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         }
 
                         indexedRevision = lastRevision;
-                        logger.info("Indexed revision [{}] of repository : {}/{} --> [{}]", indexedRevision, repos, path);
+                        logger.info("Indexed revision [{}] of repository : {}/{} --> [{}]", indexedRevision, reposAsFile, path);
                     } else {
                         logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
-                                indexedRevision, repos, path);
+                                indexedRevision, reposAsFile, path);
                     }
 
                     if(bulk.numberOfActions() > 0) {
