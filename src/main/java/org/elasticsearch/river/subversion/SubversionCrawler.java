@@ -97,14 +97,14 @@ public class SubversionCrawler {
      */
     // TODO: Sanitize this method, properly escape the content, check on encoding, visibility...
     public static String getContent(SVNDirEntry entry, SVNRepository repository, String path) {
-        String content = null;
+        String content;
         // Only applies to files
         if(entry.getKind() != SVNNodeKind.FILE) {
             return null;
         }
         SVNProperties fileProperties = new SVNProperties();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        String filePath = path.concat(File.separator).concat(entry.getRelativePath());
+        String filePath = path.concat("/").concat(entry.getRelativePath());
 
         try {
             SVNNodeKind kind = repository.checkPath( filePath , entry.getRevision());
@@ -117,6 +117,8 @@ public class SubversionCrawler {
             boolean isTextType = SVNProperty.isTextMimeType( mimeType );
             if(isTextType) {
                 content = outputStream.toString(Charsets.UTF_8.name());
+            } else {
+                content = "Not text type";
             }
 
         } catch (SVNException e) {
