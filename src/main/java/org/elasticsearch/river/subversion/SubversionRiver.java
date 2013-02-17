@@ -1,15 +1,23 @@
 package org.elasticsearch.river.subversion;
 
+import com.google.common.base.Objects;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import org.elasticsearch.ExceptionsHelper;
+import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.bulk.BulkRequestBuilder;
 import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
-import org.elasticsearch.river.*;
+import org.elasticsearch.river.AbstractRiverComponent;
+import org.elasticsearch.river.River;
+import org.elasticsearch.river.RiverName;
+import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.File;
@@ -27,7 +35,6 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private Client client;
     private ThreadPool threadPool;
 
-    private String riverIndexName;
     private String indexName = null;
     private String typeName = null;
     private String repos;
@@ -35,21 +42,23 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private int updateRate;
     private int bulkSize;
     private long indexedRevision;
+    private long startRevision;
+    private String indexedRevisionID;
 
     private volatile boolean closed;
     private volatile Thread indexerThread;
 
+    private static final HashFunction hf = Hashing.md5();
+
     @Inject
     protected SubversionRiver(RiverName riverName,
                               RiverSettings settings,
-                              @RiverIndexName String riverIndexName,
                               Client client,
                               ThreadPool threadPool) {
         super(riverName, settings);
         logger.info("Creating subversion river");
         this.client = client;
         this.threadPool = threadPool;
-        this.riverIndexName = riverIndexName;
         if (settings.settings().containsKey("svn")) {
             @SuppressWarnings("unchecked")
             Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("svn");
@@ -60,14 +69,24 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             indexName = riverName.name();
             typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
             bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
+            startRevision = XContentMapValues.nodeLongValue(subversionSettings.get("start_revision"), -1L);
         }
+
+        indexedRevisionID ="_indexed_revision_".concat(
+                hf.newHasher()
+                        .putString(repos)
+                        .putString(path)
+                        .hash()
+                        .toString()
+        );
+
     }
 
     @Override
     public void start() {
         logger.info("Starting Subversion River: repos [{}], path [{}], updateRate [{}], bulksize [{}], " +
-                "indexedRevision [{}], indexing to [{}]/[{}]",
-                repos, path, updateRate, bulkSize, indexedRevision, indexName, typeName);
+                "startRevision [{}], indexing to [{}]/[{}]",
+                repos, path, updateRate, bulkSize, startRevision, indexName, typeName);
         try {
             client.admin().indices().prepareCreate(indexName).execute().actionGet();
         } catch (Exception e) {
@@ -96,6 +115,36 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         closed = true;
     }
 
+    /**
+     * Gives the last indexed revision of the repository path
+     * return -1 if the field does not exist (yet)
+     * return 0 if the index has not been created (yet).
+     * @return last indexed revision
+     */
+    private Long getIndexedRevision() {
+        if( indexedRevision == 0L) {
+            return 0L;
+        }
+        // Checks if the index has been created
+        IndicesExistsResponse existResponse = client.admin().indices()
+                .prepareExists(indexName)
+                .execute().actionGet();
+        // If the index does not exist
+        // return 0
+        if(!existResponse.exists()) {
+            return 0L;
+        }
+        GetResponse response = client.prepareGet(indexName, typeName, indexedRevisionID)
+                .execute()
+                .actionGet();
+        logger.debug("Get Indexed Revision Response :"+response.sourceAsString());
+
+        return (Long) Objects.firstNonNull(response.field("indexed_revision"),-1L);
+    }
+
+    /**
+     * Main Indexer Class
+     */
     private class Indexer implements Runnable {
 
         // TODO: implement bulk size
@@ -115,6 +164,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                             .getResource(repos)
                             .toURI()
                     );
+
+                    indexedRevision = getIndexedRevision();
+
                     BulkRequestBuilder bulk = client.prepareBulk();
 
                     long lastRevision = SubversionCrawler.getLatestRevision(reposAsFile, path);
@@ -138,8 +190,14 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                             logger.debug("Document added to queue :{}",svnDocument.json());
                         }
 
+                        // Update the last indexed revision
                         indexedRevision = lastRevision;
-                        logger.info("Indexed revision [{}] of repository : {}/{} --> [{}]", indexedRevision, reposAsFile, path);
+                        bulk.add(indexRequest("_river")
+                                .type(indexName)
+                                .id(indexedRevisionID)
+                                .source("indexed_revision",indexedRevision)
+                        );
+                        logger.info("Indexed revision of repository : {}/{} --> [{}]", reposAsFile, path, indexedRevision);
                     } else {
                         logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
                                 indexedRevision, reposAsFile, path);

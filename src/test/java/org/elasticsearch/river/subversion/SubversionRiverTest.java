@@ -5,7 +5,10 @@ import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchClient;
 import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchIndex;
 import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchNode;
 import com.github.tlrx.elasticsearch.test.support.junit.runners.ElasticsearchRunner;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.AdminClient;
@@ -36,24 +39,39 @@ public class SubversionRiverTest {
     @ElasticsearchAdminClient
     AdminClient adminClient;
 
+    private static final HashFunction hf = Hashing.md5();
+    private static final String REPOS = "TEST_REPOS";
+    private static final String PATH = "/";
+    private static final Long START_REVISION = 4L;
+    private static final String INDEX_NAME = "_river";
+    private static final String INDEXED_REVISION_ID =
+            "_indexed_revision_".concat(
+                    hf.newHasher()
+                            .putString(REPOS)
+                            .putString(PATH)
+                            .hash()
+                            .toString()
+            );
+
     @Test
-    @ElasticsearchIndex(indexName = "_river")
-    public void testCreateIndex() {
+    @ElasticsearchIndex(indexName = INDEX_NAME)
+    public void test00CreateIndex() {
         // Checks if the index has been created
         IndicesExistsResponse existResponse = adminClient.indices()
-                .prepareExists("_river")
+                .prepareExists(INDEX_NAME)
                 .execute().actionGet();
 
         Assert.assertTrue("Index must exist", existResponse.exists());
     }
 
     @Test
-    @ElasticsearchIndex(indexName = "_river")
-    public void testIndexing() throws IOException {
+    @ElasticsearchIndex(indexName = INDEX_NAME)
+    public void test10Indexing() throws IOException {
         // Index a new document
         Map<String, Object> json = new HashMap<String, Object>();
-        json.put("repos","TEST_REPOS");
-        json.put("path","/");
+        json.put("repos",REPOS);
+        json.put("path",PATH);
+        json.put("start_revision",START_REVISION);
 
         XContentBuilder builder = jsonBuilder()
                 .startObject()
@@ -61,7 +79,7 @@ public class SubversionRiverTest {
                 .field("svn",json)
                 .endObject();
 
-        IndexResponse indexResponse = client1.prepareIndex("_river", "mysvnriver", "_meta")
+        IndexResponse indexResponse = client1.prepareIndex(INDEX_NAME, "mysvnriver", "_meta")
                 .setSource(builder)
                 .execute()
                 .actionGet();
@@ -71,8 +89,8 @@ public class SubversionRiverTest {
     }
 
     @Test
-    @ElasticsearchIndex(indexName = "_river")
-    public void testSearching() {
+    @ElasticsearchIndex(indexName = INDEX_NAME)
+    public void test20Searching() {
         // Wait 2s for the indexing to take place.
         try {
             Thread.sleep(2000L);
@@ -86,11 +104,32 @@ public class SubversionRiverTest {
                 .actionGet();
 
         for(SearchHit hit : searchResponse.hits()) {
-            System.out.println("Search result :"+hit.sourceAsString());
+            System.out.println("Search result index ["+hit.index()
+                    +"] type ["+hit.type()
+                    +"] id ["+hit.id()+"]"
+            );
+            System.out.println("Search result source:"+hit.sourceAsString());
         }
 
-        Assert.assertTrue("There must be a watchlist.txt in the repository",
+        Assert.assertTrue("There should be a watchlist.txt in the repository",
                 searchResponse.hits().totalHits() > 0);
+    }
+
+    @Test
+    @ElasticsearchIndex(indexName = INDEX_NAME)
+    public void test21GetIndexedRevision() {
+        // Wait 2s for the indexing to take place.
+        try {
+            Thread.sleep(2000L);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        GetResponse response = client1.prepareGet(INDEX_NAME, "mysvnriver", INDEXED_REVISION_ID)
+                .execute()
+                .actionGet();
+        System.out.println("Get Indexed Revision Response :"+response.sourceAsString());
+        Assert.assertFalse("Indexed Revision cannot be blank",response.isSourceEmpty());
     }
 
 }
