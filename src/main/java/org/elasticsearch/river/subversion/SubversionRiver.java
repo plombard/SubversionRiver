@@ -1,6 +1,5 @@
 package org.elasticsearch.river.subversion;
 
-import com.google.common.base.Objects;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import org.elasticsearch.ExceptionsHelper;
@@ -21,6 +20,7 @@ import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.File;
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -49,6 +49,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private volatile Thread indexerThread;
 
     private static final HashFunction hf = Hashing.md5();
+    private static final Long NOT_INDEXED_REVISION = 0L;
+    private static final Long INDEX_HEAD_REVISION = -1L;
 
     @Inject
     protected SubversionRiver(RiverName riverName,
@@ -69,7 +71,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             indexName = riverName.name();
             typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
             bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
-            startRevision = XContentMapValues.nodeLongValue(subversionSettings.get("start_revision"), -1L);
+            startRevision = XContentMapValues.nodeLongValue(subversionSettings.get("start_revision"), INDEX_HEAD_REVISION);
         }
 
         indexedRevisionID ="_indexed_revision_".concat(
@@ -117,14 +119,11 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
     /**
      * Gives the last indexed revision of the repository path
-     * return -1 if the field does not exist (yet)
-     * return 0 if the index has not been created (yet).
+     * return 0 if the field does not exist (yet)
+     * or if the index has not been created (yet).
      * @return last indexed revision
      */
     private Long getIndexedRevision() {
-        if( indexedRevision == 0L) {
-            return 0L;
-        }
         // Checks if the index has been created
         IndicesExistsResponse existResponse = client.admin().indices()
                 .prepareExists(indexName)
@@ -132,14 +131,22 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         // If the index does not exist
         // return 0
         if(!existResponse.exists()) {
-            return 0L;
+            logger.info("Get Indexed Revision Index [{}] does not exists : {}",
+                    indexName,existResponse.exists());
+            return NOT_INDEXED_REVISION;
         }
-        GetResponse response = client.prepareGet(indexName, typeName, indexedRevisionID)
+        GetResponse response = client.prepareGet("_river", indexName, indexedRevisionID)
+                .setFields("indexed_revision")
                 .execute()
                 .actionGet();
-        logger.debug("Get Indexed Revision Response :"+response.sourceAsString());
+        logger.info("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
+                "_river", indexName, indexedRevisionID, response.fields());
 
-        return (Long) Objects.firstNonNull(response.field("indexed_revision"),-1L);
+        if(response.field("indexed_revision") == null) {
+            return NOT_INDEXED_REVISION;
+        } else {
+            return (long) (Integer) response.field("indexed_revision").value();
+        }
     }
 
     /**
@@ -148,7 +155,6 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private class Indexer implements Runnable {
 
         // TODO: implement bulk size
-        // TODO: implement diff updates
         @Override
         public void run() {
             while (true) {
@@ -159,37 +165,52 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 try {
 
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
-                    File reposAsFile = new File(Thread.currentThread()
-                            .getContextClassLoader()
-                            .getResource(repos)
-                            .toURI()
-                    );
+                    File reposAsFile = new File(new URI(repos));
 
                     indexedRevision = getIndexedRevision();
-
+                    logger.info("Indexed Revision Value [{}]",indexedRevision);
                     BulkRequestBuilder bulk = client.prepareBulk();
 
                     long lastRevision = SubversionCrawler.getLatestRevision(reposAsFile, path);
-                    logger.info("Checking last revision of repository : {}/{} --> [{}]", reposAsFile, path, lastRevision);
-                    // If lastRevision is strictly superior to indexedRevision,
-                    // there have been updates to the repository, so we index them
-                    if( lastRevision > indexedRevision) {
+                    logger.info("Checking last revision of repository : {}/{} --> [{}]",
+                            reposAsFile, path, lastRevision);
 
-                        // For data consistency, we delete every reference to documents
-                        // in that path, as they'll be parsed and added next.
-                        // If we don't, we'd have to deal with deleted files still referenced in the index.
+                    // if indexed revision is the last revision, we have nothing to do
+                    // but if it's not, we index the new subversion updates.
+                    if(indexedRevision < lastRevision) {
+                        UpdatePolicy updatePolicy = getUpdatePolicy(lastRevision);
 
-                        List<SubversionDocument> result =
-                                SubversionCrawler.SvnList(reposAsFile, path, lastRevision);
+                        logger.info("Indexing repository {}/{} from revision [{}] --> [{}] incremental [{}]",
+                                reposAsFile, path, updatePolicy.fromRevision, lastRevision, updatePolicy.incremental);
 
-                        for( SubversionDocument svnDocument:result ) {
-                            bulk.add(indexRequest(indexName)
-                                    .type(typeName)
-                                    .id(svnDocument.id())
-                                    .source(svnDocument.json()));
-                            logger.debug("Document added to queue :{}",svnDocument.json());
+                        for(Long revision = updatePolicy.fromRevision;revision<=updatePolicy.toRevision;revision++) {
+                            logger.info("Now indexing repository {}/{} revision [{}]",
+                                    reposAsFile, path, revision);
+
+                            // TODO : see wether it's worth the hassle.
+                            // For data consistency, we delete every reference to documents
+                            // in that path, as they'll be parsed and added next.
+                            // If we don't, we'd have to deal with deleted files still referenced in the index.
+
+                            List<SubversionDocument> result =
+                                    SubversionCrawler.SvnList(reposAsFile, path, lastRevision);
+                            // Index only the documents with a revision >= revison,
+                            // as they are the only ones modified since last pass,
+                            // unless we are in the initial indexing pass.
+                            for( SubversionDocument svnDocument:result ) {
+                                if( !updatePolicy.incremental
+                                        || svnDocument.revision >= revision) {
+                                    bulk.add(indexRequest(indexName)
+                                            .type(typeName)
+                                            .id(svnDocument.id())
+                                            .source(svnDocument.json()));
+                                    logger.debug("Document added to queue :{}",svnDocument.json());
+                                }
+                            }
                         }
+                    }
 
+                    if(bulk.numberOfActions() > 0) {
                         // Update the last indexed revision
                         indexedRevision = lastRevision;
                         bulk.add(indexRequest("_river")
@@ -198,12 +219,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                                 .source("indexed_revision",indexedRevision)
                         );
                         logger.info("Indexed revision of repository : {}/{} --> [{}]", reposAsFile, path, indexedRevision);
-                    } else {
-                        logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
-                                indexedRevision, reposAsFile, path);
-                    }
 
-                    if(bulk.numberOfActions() > 0) {
                         try {
                             logger.info("Execute bulk {} actions", bulk.numberOfActions());
                             BulkResponse response = bulk.execute().actionGet();
@@ -213,6 +229,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         } catch (Exception e) {
                             logger.warn("failed to execute bulk", e);
                         }
+                    } else {
+                        logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
+                                indexedRevision, reposAsFile, path);
                     }
                 } catch (Exception e) {
                     logger.warn("Subversion river exception", e);
@@ -229,5 +248,49 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             }
 
         }
+    }
+
+
+    /**
+     * POJO for the river update behavior
+     */
+    private class UpdatePolicy {
+        Long fromRevision;
+        Long toRevision;
+        Boolean incremental; // Are we indexing from scratch ?
+    }
+
+    /**
+     * Based on the last revision and the river parameters,
+     * return what should be the update behavior of the river
+     * @param lastRevision last revision of the repository to index
+     * @return an UpdatePolicy with the start, end revisions, and incremental behavior
+     */
+    private UpdatePolicy getUpdatePolicy(Long lastRevision) {
+        // If repository has not been indexed yet
+        // we start from the revision specified
+        // in the settings, possibly last one (HEAD).
+        UpdatePolicy result = new UpdatePolicy();
+
+        if( indexedRevision == NOT_INDEXED_REVISION) {
+            result.incremental = false;
+            if( startRevision == INDEX_HEAD_REVISION) {
+                result.fromRevision = lastRevision;
+                result.toRevision = lastRevision;
+            } else {
+                result.fromRevision = startRevision;
+                result.toRevision = lastRevision;
+            }
+        } else {
+            result.incremental = true;
+            if(indexedRevision+1L < lastRevision) {
+                result.fromRevision = indexedRevision+1L;
+            } else {
+                result.fromRevision = lastRevision;
+            }
+            result.toRevision = lastRevision;
+        }
+
+        return result;
     }
 }

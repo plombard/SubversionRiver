@@ -18,15 +18,15 @@ import java.util.Date;
 @SuppressWarnings("unused")
 public class SubversionDocument {
 
-    @Expose private final String path;
-    @Expose private final String name;
-    @Expose private final String author;
-    @Expose private final String repository;
-    @Expose private final long revision;
-    @Expose private final Date date;
-    @Expose private final long size;
-    @Expose private final String message;
-    @Expose private final String content;
+    @Expose final String path;
+    @Expose final String name;
+    @Expose final String author;
+    @Expose final String repository;
+    @Expose final long revision;
+    @Expose final Date date;
+    @Expose final long size;
+    @Expose final String message;
+    @Expose final String content;
 
     private static final HashFunction hf = Hashing.md5();
 
@@ -54,13 +54,12 @@ public class SubversionDocument {
     }
 
     /**
-     * Path and revision should be sufficient to uniquely identify a file@revision
+     * Path should be sufficient to uniquely identify a file@revision
      * @return  a loosely constructed hashcode converted to String
      */
     public String id() {
         return hf.newHasher()
                 .putString(path)
-                .putLong(revision)
                 .hash()
                 .toString();
     }
