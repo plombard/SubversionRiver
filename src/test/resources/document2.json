@@ -1,0 +1,11 @@
+{
+    "path": "file:///TEST_REPOS/module1/trunk/watchlist.txt",
+    "name": "playlist.txt",
+    "author": "Pascal.Lombard",
+    "repository": "TEST_REPOS",
+    "revision": 6,
+    "date": "Feb 9, 2013 11:00:30 PM",
+    "size": 23,
+    "message": "Hey Oh",
+    "content": "Let's go !\n"
+}
