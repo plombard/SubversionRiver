@@ -39,3 +39,5 @@ These sources borrows *heavily* from :
 
 - ElasticSearch Confluence River by @obazoud : [https://github.com/obazoud/elasticsearch-river-confluence](https://github.com/obazoud/elasticsearch-river-confluence)
 
+- ElasticSearch Tests Helpers by @tlrx : [https://github.com/tlrx/elasticsearch-test](https://github.com/tlrx/elasticsearch-test)
+
