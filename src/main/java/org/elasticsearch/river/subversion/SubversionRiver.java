@@ -1,5 +1,6 @@
 package org.elasticsearch.river.subversion;
 
+import com.google.common.collect.Lists;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import org.elasticsearch.ExceptionsHelper;
@@ -154,7 +155,6 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
      */
     private class Indexer implements Runnable {
 
-        // TODO: implement bulk size
         @Override
         public void run() {
             while (true) {
@@ -163,13 +163,13 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 }
 
                 try {
-
+                    int totalNumberOfActions = 0;
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
                     File reposAsFile = new File(new URI(repos));
 
                     indexedRevision = getIndexedRevision();
                     logger.info("Indexed Revision Value [{}]",indexedRevision);
-                    BulkRequestBuilder bulk = client.prepareBulk();
+                    List<BulkRequestBuilder> bulks = Lists.newArrayList();
 
                     long lastRevision = SubversionCrawler.getLatestRevision(reposAsFile, path);
                     logger.info("Checking last revision of repository : {}/{} --> [{}]",
@@ -192,43 +192,36 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                             // in that path, as they'll be parsed and added next.
                             // If we don't, we'd have to deal with deleted files still referenced in the index.
 
-                            List<SubversionDocument> result =
-                                    SubversionCrawler.SvnList(reposAsFile, path, lastRevision);
-                            // Index only the documents with a revision >= revison,
+                            // The total list of subversion documents is partitioned
+                            // into smaller lists, of max size bulksize
+                            List<List<SubversionDocument>> subversionDocuments =
+                                    Lists.partition(
+                                            SubversionCrawler.SvnList(reposAsFile, path, lastRevision),
+                                            bulkSize);
+                            // Index only the documents with a doc.revision >= revision,
                             // as they are the only ones modified since last pass,
                             // unless we are in the initial indexing pass.
-                            for( SubversionDocument svnDocument:result ) {
-                                if( !updatePolicy.incremental
-                                        || svnDocument.revision >= revision) {
-                                    bulk.add(indexRequest(indexName)
-                                            .type(typeName)
-                                            .id(svnDocument.id())
-                                            .source(svnDocument.json()));
-                                    logger.debug("Document added to queue :{}",svnDocument.json());
+                            for( List<SubversionDocument> subversionDocumentList:subversionDocuments) {
+                                BulkRequestBuilder bulk = client.prepareBulk();
+                                for( SubversionDocument svnDocument:subversionDocumentList ) {
+                                    if( !updatePolicy.incremental
+                                            || svnDocument.revision >= revision) {
+                                        bulk.add(indexRequest(indexName)
+                                                .type(typeName)
+                                                .id(svnDocument.id())
+                                                .source(svnDocument.json()));
+                                        logger.debug("Document added to queue :{}",svnDocument.json());
+                                    }
                                 }
+                                bulks.add(bulk);
+                                totalNumberOfActions += bulk.numberOfActions();
                             }
                         }
                     }
 
-                    if(bulk.numberOfActions() > 0) {
-                        // Update the last indexed revision
+                    if(totalNumberOfActions > 0) {
                         indexedRevision = lastRevision;
-                        bulk.add(indexRequest("_river")
-                                .type(indexName)
-                                .id(indexedRevisionID)
-                                .source("indexed_revision",indexedRevision)
-                        );
-                        logger.info("Indexed revision of repository : {}/{} --> [{}]", reposAsFile, path, indexedRevision);
-
-                        try {
-                            logger.info("Execute bulk {} actions", bulk.numberOfActions());
-                            BulkResponse response = bulk.execute().actionGet();
-                            if (response.hasFailures()) {
-                                logger.warn("failed to execute" + response.buildFailureMessage());
-                            }
-                        } catch (Exception e) {
-                            logger.warn("failed to execute bulk", e);
-                        }
+                        executeBulks(bulks);
                     } else {
                         logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
                                 indexedRevision, reposAsFile, path);
@@ -247,6 +240,32 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
             }
 
+        }
+    }
+
+    /**
+     * Execute a List of Bulks
+     * @param bulks a bunch of bulks
+     */
+    private void executeBulks(List<BulkRequestBuilder> bulks) {
+        for( BulkRequestBuilder bulk : bulks)  {
+            // Update the last indexed revision
+            bulk.add(indexRequest("_river")
+                    .type(indexName)
+                    .id(indexedRevisionID)
+                    .source("indexed_revision", indexedRevision)
+            );
+            logger.info("Indexed revision of repository : {} --> [{}]", path, indexedRevision);
+
+            try {
+                logger.info("Execute bulk {} actions", bulk.numberOfActions());
+                BulkResponse response = bulk.execute().actionGet();
+                if (response.hasFailures()) {
+                    logger.warn("failed to execute" + response.buildFailureMessage());
+                }
+            } catch (Exception e) {
+                logger.warn("failed to execute bulk", e);
+            }
         }
     }
 

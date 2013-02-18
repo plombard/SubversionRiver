@@ -51,6 +51,7 @@ public class SubversionCrawler {
      * @return the list of items in the svn path at the specified revision
      * @throws SVNException
      */
+    //TODO: Find a way to return a Stream instead of a blunt List
     public static List<SubversionDocument> SvnList(File repos, String path, Long revision) throws SVNException {
         List<SubversionDocument> result = new ArrayList<SubversionDocument>();
         FSRepositoryFactory.setup();
