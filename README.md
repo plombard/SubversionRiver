@@ -41,3 +41,6 @@ These sources borrows *heavily* from :
 
 - ElasticSearch Tests Helpers by @tlrx : [https://github.com/tlrx/elasticsearch-test](https://github.com/tlrx/elasticsearch-test)
 
+## Copyright ##
+
+I put most of the code under Apache 2.0 licence.
