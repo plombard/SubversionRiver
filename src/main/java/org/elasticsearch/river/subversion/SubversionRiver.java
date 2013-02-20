@@ -159,7 +159,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         logger.info("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
                 "_river", indexName, indexedRevisionID, response.fields());
 
-        if(response.field("indexed_revision") == null) {
+        if(response.field("indexed_revision") == null
+                || !response.exists()) {
             return NOT_INDEXED_REVISION;
         } else {
             return (long) (Integer) response.field("indexed_revision").value();
