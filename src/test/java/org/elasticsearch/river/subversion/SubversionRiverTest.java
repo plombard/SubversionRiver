@@ -13,6 +13,9 @@ import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.cluster.ClusterState;
+import org.elasticsearch.cluster.metadata.IndexMetaData;
+import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
@@ -129,7 +132,7 @@ public class SubversionRiverTest {
     public void test20Searching() {
         // Wait 2s for the indexing to take place.
         try {
-            sleep(2000L);
+            sleep(3000L);
         } catch (InterruptedException e) {
             currentThread().interrupt();
         }
@@ -156,7 +159,7 @@ public class SubversionRiverTest {
     public void test21GetIndexedRevision() {
         // Wait 2s for the indexing to take place.
         try {
-            sleep(2000L);
+            sleep(4000L);
         } catch (InterruptedException e) {
             currentThread().interrupt();
         }
@@ -165,10 +168,38 @@ public class SubversionRiverTest {
                 .setFields("indexed_revision")
                 .execute()
                 .actionGet();
-        System.out.println("Get Indexed Revision Response :"+response.field("indexed_revision").value());
         Long result = (long) (Integer) response.field("indexed_revision").value();
+        System.out.println("Get Indexed Revision Response index ["+response.index()
+                +"] type ["+response.type()
+                +"] id ["+response.id()
+                +"] value ["+result+"]");
+
         Assert.assertTrue("Indexed Revision must be a number > 0",
                 result > 0);
     }
 
+    @Test
+    @ElasticsearchIndex(indexName = INDEX_NAME)
+    public void test22GetMapping() {
+        // Wait 2s for the indexing to take place.
+        try {
+            sleep(4000L);
+        } catch (InterruptedException e) {
+            currentThread().interrupt();
+        }
+
+        ClusterState cs = client1.admin().cluster().prepareState()
+                .setFilterIndices("mysvnriver")
+                .execute().actionGet().getState();
+        IndexMetaData imd = cs.getMetaData().index("mysvnriver");
+        MappingMetaData mdd = imd.mapping("svn");
+
+        System.out.println("Get Mapping"
+                +" type ["+mdd.type()
+                +"] id ["+mdd.id()
+                +"] source ["+mdd.source()+"]"
+        );
+
+        Assert.assertNotNull("Mapping must be set", mdd.source());
+    }
 }

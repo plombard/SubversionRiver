@@ -46,7 +46,6 @@ import static org.elasticsearch.client.Requests.indexRequest;
 /**
  * River for SVN repositories
  */
-// TODO : implement integration tests
 public class SubversionRiver extends AbstractRiverComponent implements River {
 
     private Client client;
@@ -101,17 +100,26 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
     }
 
+    @SuppressWarnings("ThrowableResultOfMethodCallIgnored")
     @Override
     public void start() {
         logger.info("Starting Subversion River: repos [{}], path [{}], updateRate [{}], bulksize [{}], " +
                 "startRevision [{}], indexing to [{}]/[{}]",
                 repos, path, updateRate, bulkSize, startRevision, indexName, typeName);
         try {
-            client.admin().indices().prepareCreate(indexName).execute().actionGet();
+            client.admin().indices()
+                    .prepareCreate(indexName)
+                    .execute().actionGet();
+            client.admin().indices()
+                    .preparePutMapping(indexName)
+                    .setType("svn")
+                    .setSource(SubversionMapping.getInstance())
+                    .execute().actionGet();
         } catch (Exception e) {
-            if (ExceptionsHelper.unwrapCause(e) instanceof IndexAlreadyExistsException) {
+            Throwable cause = ExceptionsHelper.unwrapCause(e);
+            if (cause instanceof IndexAlreadyExistsException) {
                 // that's fine
-            } else if (ExceptionsHelper.unwrapCause(e) instanceof ClusterBlockException) {
+            } else if (cause instanceof ClusterBlockException) {
                 // ok, not recovered yet..., lets start indexing and hope we recover by the first bulk
             } else {
                 logger.warn("failed to create index [{}], disabling river...", e, indexName);
@@ -236,13 +244,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         }
                     }
 
-                    if(totalNumberOfActions > 0) {
-                        indexedRevision = lastRevision;
-                        executeBulks(bulks);
-                    } else {
-                        logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
-                                indexedRevision, reposAsFile, path);
-                    }
+                    executeBulksAndSetLastRevision(totalNumberOfActions,
+                            bulks,
+                            lastRevision);
                 } catch (Exception e) {
                     logger.warn("Subversion river exception", e);
                 }
@@ -257,6 +261,24 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
             }
 
+        }
+    }
+
+    /**
+     *  Execute indexing actions if necessary
+     * @param totalNumberOfActions number of actions projected
+     * @param bulks list of actions to execute
+     * @param lastRevision last revision of the repos
+     */
+    private void executeBulksAndSetLastRevision(int totalNumberOfActions,
+                                                List<BulkRequestBuilder> bulks,
+                                                long lastRevision) {
+        if(totalNumberOfActions > 0) {
+            indexedRevision = lastRevision;
+            executeBulks(bulks);
+        } else {
+            logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
+                    indexedRevision, repos, path);
         }
     }
 
@@ -278,10 +300,10 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 logger.info("Execute bulk {} actions", bulk.numberOfActions());
                 BulkResponse response = bulk.execute().actionGet();
                 if (response.hasFailures()) {
-                    logger.warn("failed to execute" + response.buildFailureMessage());
+                    logger.error("failed to execute" + response.buildFailureMessage());
                 }
             } catch (Exception e) {
-                logger.warn("failed to execute bulk", e);
+                logger.error("failed to execute bulk", e);
             }
         }
     }

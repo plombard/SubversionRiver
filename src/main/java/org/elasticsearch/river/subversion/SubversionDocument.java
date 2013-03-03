@@ -45,6 +45,7 @@ public class SubversionDocument {
     @Expose final String content;
 
     private static final HashFunction hf = Hashing.md5();
+    private static final String DATE_TIME_ISO8601_FORMAT = "yyyy-MM-dd'T'hh:mm:ss.SSSZ";
 
 
     public SubversionDocument(SVNDirEntry entry, SVNRepository repository, String path) {
@@ -60,7 +61,10 @@ public class SubversionDocument {
     }
 
     public String json() {
-        Gson gson = new GsonBuilder().excludeFieldsWithoutExposeAnnotation().create();
+        Gson gson = new GsonBuilder()
+                .excludeFieldsWithoutExposeAnnotation()
+                .setDateFormat(DATE_TIME_ISO8601_FORMAT)
+                .create();
         return gson.toJson(this);
     }
 
