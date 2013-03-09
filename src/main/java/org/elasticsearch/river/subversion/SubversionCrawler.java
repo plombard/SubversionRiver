@@ -17,7 +17,10 @@
 package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.tmatesoft.svn.core.*;
@@ -31,6 +34,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Container for SVN repository browsing
@@ -149,4 +153,45 @@ public class SubversionCrawler {
         return content;
     }
 
+
+    public static Iterable<SubversionDocument> listEntriesByRevision(final SVNRepository svnRepository, long revision) throws SVNException {
+        Iterable result = Lists.newArrayList();
+
+
+        Collection<SVNLogEntry> svnLogEntries;
+        svnLogEntries = svnRepository.log(new String[] {"/"}, null,revision, revision, true, true);
+
+        Function svnLogToDocuments = new Function() {
+            @Override
+            public Object apply(@javax.annotation.Nullable Object o) {
+                SVNLogEntry entry = (SVNLogEntry) o;
+                List<SubversionDocument> documents = null;
+                try {
+                    documents = logEntriesToDocuments(entry, svnRepository);
+                } catch (SVNException e) {
+                    e.printStackTrace();
+                }
+
+                return documents;
+            }
+        };
+
+        result = Iterables.transform(svnLogEntries, svnLogToDocuments);
+
+        return result;
+    }
+
+    private static List<SubversionDocument> logEntriesToDocuments(SVNLogEntry entry, SVNRepository repository)
+            throws SVNException {
+        List<SubversionDocument> result = Lists.newArrayList();
+        Map<String, SVNLogEntryPath> changedPaths = entry.getChangedPaths();
+        for(String path:changedPaths.keySet()) {
+            SVNDirEntry dirEntry = null;
+            dirEntry = repository.info(path, entry.getRevision());
+
+            SubversionDocument document = new SubversionDocument(dirEntry, repository, path);
+            result.add(document);
+        }
+        return result;
+    }
 }

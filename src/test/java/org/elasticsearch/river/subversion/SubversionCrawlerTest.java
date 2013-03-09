@@ -4,9 +4,14 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.tmatesoft.svn.core.SVNException;
+import org.tmatesoft.svn.core.SVNURL;
+import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
+import org.tmatesoft.svn.core.io.SVNRepository;
+import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 
 import java.io.File;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.elasticsearch.river.subversion.SubversionCrawler.SvnList;
@@ -44,5 +49,19 @@ public class SubversionCrawlerTest {
 
         System.out.println("Latest revision of "+repos+"/"+path+" == "+revision);
         Assert.assertTrue(revision > 0);
+    }
+
+    @Test
+    public void testListEntriesByRevision() throws  SVNException {
+        long revision = 5L;
+        List<SubversionDocument> result = new ArrayList<SubversionDocument>();
+        FSRepositoryFactory.setup();
+        SVNRepository repository;
+        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
+
+        Iterable<SubversionDocument> documents =
+                SubversionCrawler.listEntriesByRevision(repository, revision);
+
+        System.out.println(documents);
     }
 }
