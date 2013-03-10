@@ -11,7 +11,6 @@ import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 
 import java.io.File;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.List;
 
 import static org.elasticsearch.river.subversion.SubversionCrawler.SvnList;
@@ -54,7 +53,6 @@ public class SubversionCrawlerTest {
     @Test
     public void testListEntriesByRevision() throws  SVNException {
         long revision = 5L;
-        List<SubversionDocument> result = new ArrayList<SubversionDocument>();
         FSRepositoryFactory.setup();
         SVNRepository repository;
         repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));

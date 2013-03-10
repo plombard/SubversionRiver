@@ -154,40 +154,37 @@ public class SubversionCrawler {
     }
 
 
-    public static Iterable<SubversionDocument> listEntriesByRevision(final SVNRepository svnRepository, long revision) throws SVNException {
-        Iterable result = Lists.newArrayList();
-
-
+    @SuppressWarnings("unchecked")
+    public static Iterable<SubversionDocument> listEntriesByRevision(final SVNRepository svnRepository, final long revision) throws SVNException {
         Collection<SVNLogEntry> svnLogEntries;
-        svnLogEntries = svnRepository.log(new String[] {"/"}, null,revision, revision, true, true);
+        svnLogEntries =
+                (Collection<SVNLogEntry>)
+                        svnRepository.log(new String[] {"/"}, null,revision, revision, true, true);
 
         Function svnLogToDocuments = new Function() {
             @Override
             public Object apply(@javax.annotation.Nullable Object o) {
                 SVNLogEntry entry = (SVNLogEntry) o;
-                List<SubversionDocument> documents = null;
-                try {
-                    documents = logEntriesToDocuments(entry, svnRepository);
-                } catch (SVNException e) {
-                    e.printStackTrace();
-                }
-
+                List<SubversionDocument> documents;
+                documents = logEntriesToDocuments(entry, svnRepository, revision);
                 return documents;
             }
         };
 
-        result = Iterables.transform(svnLogEntries, svnLogToDocuments);
-
-        return result;
+        return Iterables.transform(svnLogEntries, svnLogToDocuments);
     }
 
-    private static List<SubversionDocument> logEntriesToDocuments(SVNLogEntry entry, SVNRepository repository)
-            throws SVNException {
+    @SuppressWarnings("unchecked")
+    private static List<SubversionDocument> logEntriesToDocuments(SVNLogEntry entry, SVNRepository repository, long revision) {
         List<SubversionDocument> result = Lists.newArrayList();
         Map<String, SVNLogEntryPath> changedPaths = entry.getChangedPaths();
         for(String path:changedPaths.keySet()) {
             SVNDirEntry dirEntry = null;
-            dirEntry = repository.info(path, entry.getRevision());
+            try {
+                dirEntry = repository.info(path, revision);
+            } catch (SVNException e) {
+                logger.error("Exception extracting info from "+path,e);
+            }
 
             SubversionDocument document = new SubversionDocument(dirEntry, repository, path);
             result.add(document);
