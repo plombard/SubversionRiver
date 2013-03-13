@@ -24,7 +24,7 @@ public class SubversionCrawlerTest {
     public void setUp() throws URISyntaxException {
         repos = new File(Thread.currentThread().getContextClassLoader()
                 .getResource("TEST_REPOS").toURI());
-        path = "module1/trunk";
+        path = "/";
     }
 
     @Test
@@ -35,7 +35,7 @@ public class SubversionCrawlerTest {
             System.out.println("");
         }
 
-        Assert.assertTrue(result.size() > 0);
+        Assert.assertTrue("This repository has normally 2 elements",result.size() == 2);
     }
 
     @Test
