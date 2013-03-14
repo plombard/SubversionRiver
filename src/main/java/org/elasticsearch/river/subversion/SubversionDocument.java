@@ -48,10 +48,10 @@ public class SubversionDocument {
     private static final String DATE_TIME_ISO8601_FORMAT = "yyyy-MM-dd'T'hh:mm:ss.SSSZ";
 
 
-    public SubversionDocument(SVNDirEntry entry, SVNRepository repository, String path) {
+    public SubversionDocument(SVNDirEntry entry, SVNRepository repository) {
         this.path = entry.getURL().toDecodedString();
         this.author = entry.getAuthor();
-        this.content = SubversionCrawler.getContent(entry, repository, path);
+        this.content = SubversionCrawler.getContent(entry, repository);
         this.date = entry.getDate();
         this.message = entry.getCommitMessage();
         this.name = entry.getName();

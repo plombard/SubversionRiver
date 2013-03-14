@@ -217,26 +217,27 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                             // in that path, as they'll be parsed and added next.
                             // If we don't, we'd have to deal with deleted files still referenced in the index.
 
+                            // TODO : Build the total list of elements first, and then the list of documents
                             // The total list of subversion documents is partitioned
                             // into smaller lists, of max size bulksize
-                            List<List<SubversionDocument>> subversionDocuments =
+                            List<List<String>> subversionDocuments =
                                     Lists.partition(
                                             SubversionCrawler.SvnList(reposAsFile, path, lastRevision),
                                             bulkSize);
                             // Index only the documents with a doc.revision >= revision,
                             // as they are the only ones modified since last pass,
                             // unless we are in the initial indexing pass.
-                            for( List<SubversionDocument> subversionDocumentList:subversionDocuments) {
+                            for( List<String> subversionDocumentList:subversionDocuments) {
                                 BulkRequestBuilder bulk = client.prepareBulk();
-                                for( SubversionDocument svnDocument:subversionDocumentList ) {
-                                    if( !updatePolicy.incremental
+                                for( String svnDocument:subversionDocumentList ) {
+                                    /*if( !updatePolicy.incremental
                                             || svnDocument.revision >= revision) {
                                         bulk.add(indexRequest(indexName)
                                                 .type(typeName)
                                                 .id(svnDocument.id())
                                                 .source(svnDocument.json()));
                                         logger.debug("Document added to queue :{}",svnDocument.json());
-                                    }
+                                    }    */
                                 }
                                 bulks.add(bulk);
                                 totalNumberOfActions += bulk.numberOfActions();

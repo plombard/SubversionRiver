@@ -18,6 +18,7 @@ package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Objects;
+import com.google.common.collect.Lists;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
 import org.tmatesoft.svn.core.*;
@@ -28,7 +29,6 @@ import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -60,16 +60,15 @@ public class SubversionCrawler {
     }
 
     /**
-     * Find and retrieve the elements under the svn path specified.
+     * Find and retrieve the elements paths under the svn path specified.
      * @param repos repository
      * @param path svn path to inspect
      * @param revision revision to retrieve, leave null or -1 for HEAD
      * @return the list of items in the svn path at the specified revision
      * @throws SVNException
      */
-    //TODO: Find a way to return a Stream instead of a blunt List
-    public static List<SubversionDocument> SvnList(File repos, String path, Long revision) throws SVNException {
-        List<SubversionDocument> result = new ArrayList<SubversionDocument>();
+    public static List<String> SvnList(File repos, String path, Long revision) throws SVNException {
+        List<String> result = Lists.newArrayList();
         FSRepositoryFactory.setup();
         SVNRepository repository;
         repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
@@ -89,47 +88,88 @@ public class SubversionCrawler {
      *
      * @param repository  repos to explore
      * @param path starting path
-     * @param list SVNDocument list to populate
+     * @param list list of elements to populate
      * @param revision revision to fetch
      * @throws SVNException
      */
     @SuppressWarnings("unchecked")
-    private static void listEntriesRecursive( SVNRepository repository, String path, List<SubversionDocument> list, Long revision ) throws SVNException {
+    private static void listEntriesRecursive( SVNRepository repository, String path, List<String> list, Long revision ) throws SVNException {
          for(SVNDirEntry entry:(Collection<SVNDirEntry>)repository.getDir( path, revision , null , (Collection) null )) {
             if ( entry.getKind() == SVNNodeKind.DIR ) {
-                listEntriesRecursive(repository, (path.equals("")) ? entry.getName() : path + "/" + entry.getName(), list, revision);
+                listEntriesRecursive(repository,
+                        (path.equals("")) ? entry.getName() : path .concat("/") .concat(entry.getName()),
+                        list,
+                        revision
+                );
             } else {
-                SubversionDocument svnDocument = new SubversionDocument(entry, repository, path);
-                list.add(svnDocument);
+                list.add(path .concat("/") .concat(entry.getName()));
             }
         }
+    }
+
+    /**
+     * Create a SubversionDocument with the element at the revision.
+     * @param repository the repository containing the element.
+     * @param svnElementPath the full path of the element, including the element.
+     * @param revision the revision to consider.
+     * @return a complete SubversionDocument
+     */
+    private static SubversionDocument getDocument(SVNRepository repository, String svnElementPath, Long revision) throws SVNException {
+        return new SubversionDocument(
+                    repository.info(svnElementPath, revision),
+                    repository
+                );
+    }
+
+    /**
+     * Fill up a list of SubversionDocument from a list of elements
+     * @param elements relative paths of the elements
+     * @param repos subversion repository
+     * @param revision the revision to consider
+     * @return a list of the corresponding documents
+     * @throws SVNException
+     */
+    public static List<SubversionDocument> getDocuments(List<String> elements, File repos, Long revision)
+            throws SVNException {
+        FSRepositoryFactory.setup();
+        SVNRepository repository;
+        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
+        logger.debug( "Repository Root: " + repository.getRepositoryRoot(true) );
+        logger.debug(  "Repository UUID: " + repository.getRepositoryUUID(true) );
+
+        List<SubversionDocument> result = Lists.newArrayList();
+        for(String element : elements) {
+            result.add(getDocument(repository, element, revision));
+        }
+        return result;
     }
 
     /**
      *  Get the SVNEntry file content
      * @param entry the SVNEntry
      * @param repository  the repository containing the entry
-     * @param path  the relative path of the entry
      * @return the text content of the file, or null if exception or not a file
      */
     // TODO: Sanitize this method, properly escape the content, check on encoding, visibility...
-    public static String getContent(SVNDirEntry entry, SVNRepository repository, String path) {
+    public static String getContent(SVNDirEntry entry, SVNRepository repository) {
         String content;
         // Only applies to files
         if(entry.getKind() != SVNNodeKind.FILE) {
             return null;
         }
+
+        // A terrible way to find the entry path relative to the repository root
+        String path = entry.getURL().toString().replaceFirst(entry.getRepositoryRoot().toString(),"");
         SVNProperties fileProperties = new SVNProperties();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        String filePath = path.concat("/").concat(entry.getRelativePath());
 
         try {
-            SVNNodeKind kind = repository.checkPath( filePath , entry.getRevision());
+            SVNNodeKind kind = repository.checkPath( path , entry.getRevision());
             // if the kind is "none", file simply does not exist
             if(!kind.equals(SVNNodeKind.FILE)) {
                 return null;
             }
-            repository.getFile( filePath , entry.getRevision() , fileProperties , outputStream );
+            repository.getFile( path , entry.getRevision() , fileProperties , outputStream );
             String mimeType = fileProperties.getStringValue(SVNProperty.MIME_TYPE);
             boolean isTextType = SVNProperty.isTextMimeType( mimeType );
             if(isTextType) {
