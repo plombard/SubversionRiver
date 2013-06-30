@@ -1,5 +1,6 @@
 package org.elasticsearch.river.subversion;
 
+import org.elasticsearch.river.subversion.beans.SubversionDocument;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

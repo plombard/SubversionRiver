@@ -3,6 +3,7 @@ package org.elasticsearch.river.subversion;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
+import org.elasticsearch.river.subversion.beans.SubversionDocument;
 import org.junit.Before;
 import org.junit.Test;
 

@@ -14,13 +14,14 @@
  *    limitations under the License.
  */
 
-package org.elasticsearch.river.subversion;
+package org.elasticsearch.river.subversion.beans;
 
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
+import org.elasticsearch.river.subversion.SubversionCrawler;
 import org.tmatesoft.svn.core.SVNDirEntry;
 import org.tmatesoft.svn.core.io.SVNRepository;
 
@@ -44,7 +45,7 @@ public class SubversionDocument {
     @Expose final String message;
     @Expose final String content;
 
-    private static final HashFunction hf = Hashing.md5();
+    private static transient final HashFunction hf = Hashing.md5();
     private static final String DATE_TIME_ISO8601_FORMAT = "yyyy-MM-dd'T'hh:mm:ss.SSSZ";
 
 

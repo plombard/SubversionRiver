@@ -21,6 +21,7 @@ import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
+import org.elasticsearch.river.subversion.beans.SubversionDocument;
 import org.tmatesoft.svn.core.*;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
 import org.tmatesoft.svn.core.io.SVNRepository;
