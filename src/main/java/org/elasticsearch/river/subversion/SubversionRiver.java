@@ -16,6 +16,7 @@
 
 package org.elasticsearch.river.subversion;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
@@ -34,6 +35,7 @@ import org.elasticsearch.river.AbstractRiverComponent;
 import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
+import org.elasticsearch.river.subversion.beans.SubversionRevision;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.File;
@@ -155,9 +157,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 .execute().actionGet();
         // If the index does not exist
         // return 0
-        if(!existResponse.exists()) {
+        if(!existResponse.isExists()) {
             logger.info("Get Indexed Revision Index [{}] does not exists : {}",
-                    indexName,existResponse.exists());
+                    indexName,existResponse.isExists());
             return NOT_INDEXED_REVISION;
         }
         GetResponse response = client.prepareGet("_river", indexName, indexedRevisionID)
@@ -165,13 +167,13 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 .execute()
                 .actionGet();
         logger.info("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
-                "_river", indexName, indexedRevisionID, response.fields());
+                "_river", indexName, indexedRevisionID, response.getFields());
 
-        if(response.field("indexed_revision") == null
-                || !response.exists()) {
+        if(response.getField("indexed_revision") == null
+                || !response.isExists()) {
             return NOT_INDEXED_REVISION;
         } else {
-            return (long) (Integer) response.field("indexed_revision").value();
+            return (long) (Integer) response.getField("indexed_revision").getValue();
         }
     }
 
@@ -220,16 +222,16 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                             // TODO : Build the total list of elements first, and then the list of documents
                             // The total list of subversion documents is partitioned
                             // into smaller lists, of max size bulksize
-                            List<List<String>> subversionDocuments =
+                            List<List<SubversionRevision>> subversionRevisions =
                                     Lists.partition(
-                                            SubversionCrawler.SvnList(reposAsFile, path, lastRevision),
+                                            SubversionCrawler.getRevisions(reposAsFile, path, Optional.<Long>absent(), Optional.<Long>absent()),
                                             bulkSize);
                             // Index only the documents with a doc.revision >= revision,
                             // as they are the only ones modified since last pass,
                             // unless we are in the initial indexing pass.
-                            for( List<String> subversionDocumentList:subversionDocuments) {
+                            for( List<SubversionRevision> subversionRevisionListList:subversionRevisions) {
                                 BulkRequestBuilder bulk = client.prepareBulk();
-                                for( String svnDocument:subversionDocumentList ) {
+                                for( SubversionRevision svnRevision:subversionRevisionListList ) {
                                     /*if( !updatePolicy.incremental
                                             || svnDocument.revision >= revision) {
                                         bulk.add(indexRequest(indexName)

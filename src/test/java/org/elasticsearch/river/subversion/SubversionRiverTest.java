@@ -1,45 +1,16 @@
 package org.elasticsearch.river.subversion;
 
-import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchAdminClient;
-import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchClient;
-import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchIndex;
 import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchNode;
 import com.github.tlrx.elasticsearch.test.support.junit.runners.ElasticsearchRunner;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
-import org.elasticsearch.action.get.GetResponse;
-import org.elasticsearch.action.index.IndexResponse;
-import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.AdminClient;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.cluster.ClusterState;
-import org.elasticsearch.cluster.metadata.IndexMetaData;
-import org.elasticsearch.cluster.metadata.MappingMetaData;
-import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.search.SearchHit;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.FixMethodOrder;
-import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.MethodSorters;
-
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.Map;
-
-import static java.lang.Thread.currentThread;
-import static java.lang.Thread.sleep;
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 @RunWith(ElasticsearchRunner.class)
 @ElasticsearchNode
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class SubversionRiverTest {
-
+    /*
     @ElasticsearchClient()
     Client client1;
 
@@ -202,4 +173,5 @@ public class SubversionRiverTest {
 
         Assert.assertNotNull("Mapping must be set", mdd.source());
     }
+    */
 }

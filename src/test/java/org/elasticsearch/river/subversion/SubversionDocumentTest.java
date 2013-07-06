@@ -11,7 +11,6 @@ import java.io.File;
 
 import static java.lang.Thread.currentThread;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 public class SubversionDocumentTest {
 
@@ -38,10 +37,4 @@ public class SubversionDocumentTest {
         assertNotNull(document1.json());
     }
 
-    @Test
-    public void testId() throws Exception {
-        System.out.println(document1.id());
-        System.out.println(document2.id());
-        assertTrue(document1.id().equalsIgnoreCase(document2.id()));
-    }
 }

@@ -1,6 +1,7 @@
 package org.elasticsearch.river.subversion;
 
-import org.elasticsearch.river.subversion.beans.SubversionDocument;
+import com.google.common.base.Optional;
+import org.elasticsearch.river.subversion.beans.SubversionRevision;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -15,7 +16,9 @@ import java.io.File;
 import java.net.URISyntaxException;
 import java.util.List;
 
-import static org.elasticsearch.river.subversion.SubversionCrawler.*;
+import static org.elasticsearch.river.subversion.SubversionCrawler.getContent;
+import static org.elasticsearch.river.subversion.SubversionCrawler.getRevisions;
+
 
 /**
  * Test for SVN SubversionCrawler
@@ -34,24 +37,18 @@ public class SubversionCrawlerTest {
     }
 
     @Test
-    public void testSvnList() throws SVNException {
-        List<String> result = SvnList(repos, path, null);
-        for( String svnElementPath:result ) {
-            System.out.println(svnElementPath);
+    public void testGetRevisions() throws SVNException {
+        List<SubversionRevision> result = getRevisions(
+                repos,
+                path,
+                Optional.<Long>absent(),
+                Optional.<Long>absent()
+        );
+        for( SubversionRevision revision : result ) {
+            System.out.println(revision.json());
         }
 
-        Assert.assertTrue("This repository has normally 2 elements",result.size() == 2);
-    }
-
-    @Test
-    public void testGetDocuments() throws SVNException {
-        List<String> elementsList = SvnList(repos, path, null);
-        List<SubversionDocument> result = getDocuments(elementsList, repos, -1L);
-        for( SubversionDocument document : result ) {
-            System.out.println(document.json());
-        }
-
-        Assert.assertTrue("This repository has normally 2 elements",result.size() == 2);
+        Assert.assertTrue("This repository has normally 7 revisions",result.size() == 7);
     }
 
     @Test
