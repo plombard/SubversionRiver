@@ -89,7 +89,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             indexName = riverName.name();
             typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
             bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
-            startRevision = XContentMapValues.nodeLongValue(subversionSettings.get("start_revision"), INDEX_HEAD_REVISION);
+            startRevision = XContentMapValues.nodeLongValue(subversionSettings.get("start_revision"), 1L);
         }
 
         indexedRevisionID ="_indexed_revision_".concat(
@@ -173,7 +173,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 || !response.isExists()) {
             return NOT_INDEXED_REVISION;
         } else {
-            return (long) (Integer) response.getField("indexed_revision").getValue();
+            return (Long) response.getField("indexed_revision").getValue();
         }
     }
 
@@ -195,7 +195,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     File reposAsFile = new File(new URI(repos));
 
                     indexedRevision = getIndexedRevision();
-                    logger.info("Indexed Revision Value [{}]",indexedRevision);
+                    logger.info("Indexed Revision Value [{}]", indexedRevision);
                     List<BulkRequestBuilder> bulks = Lists.newArrayList();
 
                     long lastRevision = SubversionCrawler.getLatestRevision(reposAsFile, path);
@@ -204,52 +204,40 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
                     // if indexed revision is the last revision, we have nothing to do
                     // but if it's not, we index the new subversion updates.
-                    if(indexedRevision < lastRevision) {
-                        UpdatePolicy updatePolicy = getUpdatePolicy(lastRevision);
+                    if (indexedRevision < lastRevision) {
+                        UpdatePolicy updatePolicy = getUpdatePolicy(lastRevision, bulkSize);
 
-                        logger.info("Indexing repository {}/{} from revision [{}] --> [{}] incremental [{}]",
-                                reposAsFile, path, updatePolicy.fromRevision, lastRevision, updatePolicy.incremental);
+                        logger.info("Indexing repository {}/{} from revision [{}] to [{}] incremental [{}]",
+                                reposAsFile, path, updatePolicy.fromRevision, updatePolicy.toRevision, updatePolicy.incremental);
 
-                        for(Long revision = updatePolicy.fromRevision;revision<=updatePolicy.toRevision;revision++) {
-                            logger.info("Now indexing repository {}/{} revision [{}]",
-                                    reposAsFile, path, revision);
+                        logger.info("Now indexing repository {}/{} revision [{}] to [{}]",
+                                reposAsFile, path, updatePolicy.fromRevision, updatePolicy.toRevision);
 
-                            // TODO : see wether it's worth the hassle.
-                            // For data consistency, we delete every reference to documents
-                            // in that path, as they'll be parsed and added next.
-                            // If we don't, we'd have to deal with deleted files still referenced in the index.
-
-                            // TODO : Build the total list of elements first, and then the list of documents
-                            // The total list of subversion documents is partitioned
-                            // into smaller lists, of max size bulksize
-                            List<List<SubversionRevision>> subversionRevisions =
-                                    Lists.partition(
-                                            SubversionCrawler.getRevisions(reposAsFile, path, Optional.<Long>absent(), Optional.<Long>absent()),
-                                            bulkSize);
-                            // Index only the documents with a doc.revision >= revision,
-                            // as they are the only ones modified since last pass,
-                            // unless we are in the initial indexing pass.
-                            for( List<SubversionRevision> subversionRevisionListList:subversionRevisions) {
-                                BulkRequestBuilder bulk = client.prepareBulk();
-                                for( SubversionRevision svnRevision:subversionRevisionListList ) {
-                                    /*if( !updatePolicy.incremental
-                                            || svnDocument.revision >= revision) {
-                                        bulk.add(indexRequest(indexName)
-                                                .type(typeName)
-                                                .id(svnDocument.id())
-                                                .source(svnDocument.json()));
-                                        logger.debug("Document added to queue :{}",svnDocument.json());
-                                    }    */
-                                }
-                                bulks.add(bulk);
-                                totalNumberOfActions += bulk.numberOfActions();
-                            }
+                        // The total list of subversion documents is partitioned
+                        // into smaller lists, of max size bulksize
+                        List<SubversionRevision> subversionRevisionsBulk =
+                                SubversionCrawler.getRevisions(
+                                        reposAsFile,
+                                        path,
+                                        Optional.of(updatePolicy.fromRevision),
+                                        Optional.of(updatePolicy.toRevision)
+                                );
+                        // Send the revisions in bulk to the index
+                        BulkRequestBuilder bulk = client.prepareBulk();
+                        for (SubversionRevision svnRevision : subversionRevisionsBulk) {
+                            bulk.add(indexRequest(indexName)
+                                    .type(typeName)
+                                    .id(svnRevision.id())
+                                    .source(svnRevision.json()));
+                            logger.debug("Document added to queue :{}", svnRevision.json());
                         }
+                        bulks.add(bulk);
+                        totalNumberOfActions += bulk.numberOfActions();
+                        executeBulksAndSetLastRevision(totalNumberOfActions,
+                                bulks,
+                                updatePolicy.toRevision);
                     }
 
-                    executeBulksAndSetLastRevision(totalNumberOfActions,
-                            bulks,
-                            lastRevision);
                 } catch (Exception e) {
                     logger.warn("Subversion river exception", e);
                 }
@@ -325,12 +313,13 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
      * Based on the last revision and the river parameters,
      * return what should be the update behavior of the river
      * @param lastRevision last revision of the repository to index
+     * @param bulkSize the size of the document batch to index simultaneously
      * @return an UpdatePolicy with the start, end revisions, and incremental behavior
      */
-    private UpdatePolicy getUpdatePolicy(Long lastRevision) {
+    private UpdatePolicy getUpdatePolicy(Long lastRevision, Integer bulkSize) {
         // If repository has not been indexed yet
         // we start from the revision specified
-        // in the settings, possibly last one (HEAD).
+        // in the settings. (default is revision 1)
         UpdatePolicy result = new UpdatePolicy();
 
         if( indexedRevision == NOT_INDEXED_REVISION) {
@@ -350,6 +339,10 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 result.fromRevision = lastRevision;
             }
             result.toRevision = lastRevision;
+        }
+        // handling batch size
+        if( result.fromRevision+bulkSize < result.toRevision ) {
+            result.toRevision = result.fromRevision+bulkSize;
         }
 
         return result;

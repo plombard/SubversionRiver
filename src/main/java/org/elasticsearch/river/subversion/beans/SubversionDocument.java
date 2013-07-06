@@ -37,6 +37,14 @@ public class SubversionDocument {
     @Expose final char change;
     @Expose final String content;
 
+    public SubversionDocument(String path, String name, long size, char change, String content) {
+        this.path = path;
+        this.name = name;
+        this.size = size;
+        this.change = change;
+        this.content = content;
+    }
+
     public SubversionDocument(SVNDirEntry entry, SVNRepository repository, char change) {
         this.path = entry.getURL().toDecodedString();
         this.content = SubversionCrawler.getContent(entry, repository);

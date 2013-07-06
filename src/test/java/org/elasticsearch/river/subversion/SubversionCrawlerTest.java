@@ -52,6 +52,21 @@ public class SubversionCrawlerTest {
     }
 
     @Test
+    public void testGetRevisionsModule1() throws SVNException {
+        List<SubversionRevision> result = getRevisions(
+                repos,
+                "/module1",
+                Optional.<Long>absent(),
+                Optional.<Long>absent()
+        );
+        for( SubversionRevision revision : result ) {
+            System.out.println(revision.json());
+        }
+
+        Assert.assertTrue("This repository has normally 5 revisions",result.size() == 5);
+    }
+
+    @Test
     public void testGetContent() throws SVNException {
         FSRepositoryFactory.setup();
         SVNRepository repository;

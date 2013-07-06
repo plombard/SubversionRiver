@@ -10,7 +10,7 @@ After downloading the sources, run the task `mvn package`.
 
 Use the elasticsearch plugin manager to install the plugin :
 
-    $ /path-to/elasticsearch/bin/plugin -url file:./target/release/elasticsearch-river-subversion-0.20.5.zip -install river-subversion
+    $ /path-to/elasticsearch/bin/plugin -url file:./target/release/elasticsearch-river-subversion-0.2.0.zip -install river-subversion
 
 ### Creating a Subversion river ###
 Just create a new river of type "svn" and give it at least a repository (only local file at the moment) and a path to index ("/" for the entire repos) :
@@ -26,6 +26,8 @@ Just create a new river of type "svn" and give it at least a repository (only lo
 ### Data indexed ###
 For the moment the river indexes only a few metadatas from svn, mainly the file content (I wrote it for full-text searches) :
 **path**, **name**, **author**, **repository**, **revision**, **date**, **size**, **message** and **content**.
+Please be aware that the mapping did change from the previous version, as the indexing of revisions is now preferred to the indexing of single documents.
+
 
 ## Credits ##
 

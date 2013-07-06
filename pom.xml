@@ -129,7 +129,7 @@
         <dependency>
             <groupId>com.github.tlrx</groupId>
             <artifactId>elasticsearch-test</artifactId>
-            <version>0.0.7</version>
+            <version>0.0.9</version>
         </dependency>
     </dependencies>
 

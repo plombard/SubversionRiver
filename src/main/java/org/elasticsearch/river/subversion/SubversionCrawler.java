@@ -31,6 +31,7 @@ import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -103,21 +104,39 @@ public class SubversionCrawler {
             for (Map.Entry<String, SVNLogEntryPath> entry : changedPaths.entrySet()) {
                 // For each changed path, get the SVNDirEntry...
                 SVNLogEntryPath svnLogEntryPath = entry.getValue();
-                SVNDirEntry dirEntry = repository.getDir(
-                        svnLogEntryPath.getPath(),
-                        logEntry.getRevision(),
-                        false,
-                        null
-                );
+                // (only if the entry was added or modified)
+                if (svnLogEntryPath.getType() == 'A'
+                        || svnLogEntryPath.getType() == 'M') {
+                    SVNDirEntry dirEntry = repository.info(
+                            svnLogEntryPath.getPath(),
+                            logEntry.getRevision()
+                    );
 
-                // ...and init a SubversionDocument to add to the revision
-                subversionRevision.addDocument(
-                        new SubversionDocument(
-                                dirEntry,
-                                repository,
-                                svnLogEntryPath.getType()
-                        )
-                );
+
+                    // ...and init a SubversionDocument to add to the revision
+                    subversionRevision.addDocument(
+                            new SubversionDocument(
+                                    dirEntry,
+                                    repository,
+                                    svnLogEntryPath.getType()
+                            )
+                    );
+                } else {
+                    // Else, the entry was deleted or replaced
+                    // So we can't getDir() on it
+                    subversionRevision.addDocument(
+                            new SubversionDocument(
+                                    svnLogEntryPath.getPath(),
+                                    Paths.get(
+                                            svnLogEntryPath.getPath())
+                                            .getFileName()
+                                            .toString(),
+                                    0,
+                                    svnLogEntryPath.getType(),
+                                    null
+                            )
+                    );
+                }
             }
             result.add(subversionRevision);
         }
