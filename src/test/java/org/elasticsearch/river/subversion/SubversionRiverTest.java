@@ -77,7 +77,7 @@ public class SubversionRiverTest {
                 .prepareExists(INDEX_NAME)
                 .execute().actionGet();
 
-        Assert.assertTrue("Index must exist", existResponse.exists());
+        Assert.assertTrue("Index must exist", existResponse.isExists());
     }
 
     @Test
@@ -101,7 +101,7 @@ public class SubversionRiverTest {
                 .actionGet();
 
         Assert.assertTrue("Indexing must return a version >= 1",
-                indexResponse.version() >= 1);
+                indexResponse.getVersion() >= 1);
     }
 
     @Test
@@ -124,7 +124,7 @@ public class SubversionRiverTest {
                 .actionGet();
 
         Assert.assertTrue("Indexing must return a version >= 1",
-                indexResponse.version() >= 1);
+                indexResponse.getVersion() >= 1);
     }
 
     @Test
@@ -142,7 +142,7 @@ public class SubversionRiverTest {
                 .execute()
                 .actionGet();
 
-        for(SearchHit hit : searchResponse.hits()) {
+        for(SearchHit hit : searchResponse.getHits()) {
             System.out.println("Search result index ["+hit.index()
                     +"] type ["+hit.type()
                     +"] id ["+hit.id()+"]"
@@ -151,7 +151,7 @@ public class SubversionRiverTest {
         }
 
         Assert.assertTrue("There should be a watchlist.txt in the repository",
-                searchResponse.hits().totalHits() > 0);
+                searchResponse.getHits().totalHits() > 0);
     }
 
     @Test
@@ -168,10 +168,10 @@ public class SubversionRiverTest {
                 .setFields("indexed_revision")
                 .execute()
                 .actionGet();
-        Long result = (long) (Integer) response.field("indexed_revision").value();
-        System.out.println("Get Indexed Revision Response index ["+response.index()
-                +"] type ["+response.type()
-                +"] id ["+response.id()
+        Long result = (Long) response.getField("indexed_revision").getValue();
+        System.out.println("Get Indexed Revision Response index ["+response.getIndex()
+                +"] type ["+response.getType()
+                +"] id ["+response.getId()
                 +"] value ["+result+"]");
 
         Assert.assertTrue("Indexed Revision must be a number > 0",
@@ -202,4 +202,5 @@ public class SubversionRiverTest {
 
         Assert.assertNotNull("Mapping must be set", mdd.source());
     }
+
 }

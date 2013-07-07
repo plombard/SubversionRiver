@@ -20,10 +20,10 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 
 import java.io.IOException;
 
-import static org.elasticsearch.common.xcontent.XContentFactory.*;
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 /**
- * Mapping for the indexing of SubversionDocument objects
+ * Mapping for the indexing of SubversionRevision objects
  */
 @SuppressWarnings("unused")
 public class SubversionMapping {
@@ -34,11 +34,24 @@ public class SubversionMapping {
         if( instance == null) {
             instance = jsonBuilder().startObject().startObject("svn")
                     .startObject("properties")
-                        .startObject("path")
-                            .field("type", "string")
-                        .endObject()
-                        .startObject("name")
-                            .field("type", "string")
+                        .startObject("documents")
+                            .startObject("properties")
+                                .startObject("path")
+                                    .field("type", "string")
+                                .endObject()
+                                .startObject("name")
+                                    .field("type", "string")
+                                .endObject()
+                                .startObject("size")
+                                    .field("type", "integer")
+                                .endObject()
+                                .startObject("change")
+                                    .field("type", "string")
+                                .endObject()
+                                .startObject("content")
+                                    .field("type", "string")
+                                .endObject()
+                            .endObject()
                         .endObject()
                         .startObject("author")
                             .field("type", "string")
@@ -53,13 +66,7 @@ public class SubversionMapping {
                             .field("type", "date")
                             .field("format", "date_time")
                         .endObject()
-                        .startObject("size")
-                            .field("type", "long")
-                        .endObject()
                         .startObject("message")
-                            .field("type", "string")
-                        .endObject()
-                        .startObject("content")
                             .field("type", "string")
                         .endObject()
                     .endObject()

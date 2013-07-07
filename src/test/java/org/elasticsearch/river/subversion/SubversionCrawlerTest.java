@@ -1,8 +1,11 @@
 package org.elasticsearch.river.subversion;
 
+import com.google.common.base.Optional;
+import org.elasticsearch.river.subversion.beans.SubversionRevision;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.tmatesoft.svn.core.SVNDirEntry;
 import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.SVNURL;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
@@ -13,7 +16,9 @@ import java.io.File;
 import java.net.URISyntaxException;
 import java.util.List;
 
-import static org.elasticsearch.river.subversion.SubversionCrawler.SvnList;
+import static org.elasticsearch.river.subversion.SubversionCrawler.getContent;
+import static org.elasticsearch.river.subversion.SubversionCrawler.getRevisions;
+
 
 /**
  * Test for SVN SubversionCrawler
@@ -28,18 +33,47 @@ public class SubversionCrawlerTest {
     public void setUp() throws URISyntaxException {
         repos = new File(Thread.currentThread().getContextClassLoader()
                 .getResource("TEST_REPOS").toURI());
-        path = "module1/trunk";
+        path = "/";
     }
 
     @Test
-    public void testSvnList() throws Exception {
-        List<SubversionDocument> result = SvnList(repos, path, null);
-        for( SubversionDocument svnDocument:result ) {
-            System.out.println(svnDocument.json());
-            System.out.println("");
+    public void testGetRevisions() throws SVNException {
+        List<SubversionRevision> result = getRevisions(
+                repos,
+                path,
+                Optional.<Long>absent(),
+                Optional.<Long>absent()
+        );
+        for( SubversionRevision revision : result ) {
+            System.out.println(revision.json());
         }
 
-        Assert.assertTrue(result.size() > 0);
+        Assert.assertTrue("This repository has normally 7 revisions",result.size() == 7);
+    }
+
+    @Test
+    public void testGetRevisionsModule1() throws SVNException {
+        List<SubversionRevision> result = getRevisions(
+                repos,
+                "/module1",
+                Optional.<Long>absent(),
+                Optional.<Long>absent()
+        );
+        for( SubversionRevision revision : result ) {
+            System.out.println(revision.json());
+        }
+
+        Assert.assertTrue("This repository has normally 5 revisions",result.size() == 5);
+    }
+
+    @Test
+    public void testGetContent() throws SVNException {
+        FSRepositoryFactory.setup();
+        SVNRepository repository;
+        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
+        SVNDirEntry entry = repository.info("module1/trunk/watchlist.txt", 7L);
+        String result = getContent(entry, repository);
+        Assert.assertNotNull("This file cannot be empty/null", result);
     }
 
     @Test
