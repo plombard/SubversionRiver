@@ -84,16 +84,4 @@ public class SubversionCrawlerTest {
         Assert.assertTrue(revision > 0);
     }
 
-    @Test
-    public void testListEntriesByRevision() throws  SVNException {
-        long revision = 5L;
-        FSRepositoryFactory.setup();
-        SVNRepository repository;
-        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
-
-        Iterable<SubversionDocument> documents =
-                SubversionCrawler.listEntriesByRevision(repository, revision);
-
-        System.out.println(documents);
-    }
 }
