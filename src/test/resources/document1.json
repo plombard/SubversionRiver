@@ -1,11 +1,16 @@
-{
-    "path": "file:///TEST_REPOS/module1/trunk/watchlist.txt",
-    "name": "watchlist.txt",
+{"documents": [
+    {
+        "path": "/module2/trunk/playlist.txt",
+        "name": "playlist.txt",
+        "size": 88,
+        "change": "M",
+        "content": "Hey, maybe I\u0027ll try this Metal Gear Solid series the internet won\u0027t stop arguing about.\n",
+        "from": -1
+    }
+],
     "author": "Pascal.Lombard",
-    "repository": "TEST_REPOS",
+    "repository": "/home/Pascal.Lombard/Workspace/workspace-git/SubversionRiver/target/test-classes/TEST_REPOS",
     "revision": 7,
-    "date": "Feb 9, 2013 11:00:30 PM",
-    "size": 23,
-    "message": "what the hell ?",
-    "content": "Episode 9...  .______.\n"
+    "date": "2013-02-09T11:02:59.664+0100",
+    "message": "I have another idea"
 }

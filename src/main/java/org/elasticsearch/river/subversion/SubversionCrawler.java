@@ -31,7 +31,6 @@ import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -55,9 +54,9 @@ public class SubversionCrawler {
         FSRepositoryFactory.setup();
         SVNRepository repository;
         repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
-        logger.debug("Repository Root: " + repository.getRepositoryRoot(true));
-        logger.debug("Repository UUID: " + repository.getRepositoryUUID(true));
-        logger.debug("Repository HEAD Revision: " + repository.getLatestRevision());
+        logger.debug("Repository Root: {}", repository.getRepositoryRoot(true));
+        logger.debug("Repository UUID: {}", repository.getRepositoryUUID(true));
+        logger.debug("Repository HEAD Revision: {}", repository.getLatestRevision());
 
         // call getDir() at HEAD revision,
         // no commit messages or entries necessary
@@ -76,14 +75,13 @@ public class SubversionCrawler {
         FSRepositoryFactory.setup();
         SVNRepository repository;
         repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
-        logger.debug("Repository Root: " + repository.getRepositoryRoot(true));
-        logger.debug("Repository UUID: " + repository.getRepositoryUUID(true));
         Long end = endOp.isPresent() ? endOp.get() : repository.getLatestRevision();
+        logger.info("Retrieving revisions from [{}] to [{}]", start, end);
 
         String[] targetPaths = new String[1];
         targetPaths[0] = path;
 
-        // For every revision in the range
+        // Do a "svn log" for revisions in the range
         Collection logEntries =
                 repository.log(
                         targetPaths,
@@ -99,47 +97,23 @@ public class SubversionCrawler {
             SubversionRevision subversionRevision =
                     new SubversionRevision(logEntry, repository.getLocation().getPath());
 
-            final Map<String, SVNLogEntryPath> changedPaths = logEntry.getChangedPaths();
+            Map<String, SVNLogEntryPath> changedPaths = logEntry.getChangedPaths();
 
             for (Map.Entry<String, SVNLogEntryPath> entry : changedPaths.entrySet()) {
-                // For each changed path, get the SVNDirEntry...
+                // For each changed path, get the corresponding SVNDocument
                 SVNLogEntryPath svnLogEntryPath = entry.getValue();
-                // (only if the entry was added or modified)
-                if (svnLogEntryPath.getType() == 'A'
-                        || svnLogEntryPath.getType() == 'M') {
-                    SVNDirEntry dirEntry = repository.info(
-                            svnLogEntryPath.getPath(),
-                            logEntry.getRevision()
-                    );
-
-
-                    // ...and init a SubversionDocument to add to the revision
-                    subversionRevision.addDocument(
-                            new SubversionDocument(
-                                    dirEntry,
-                                    repository,
-                                    svnLogEntryPath.getType()
-                            )
-                    );
-                } else {
-                    // Else, the entry was deleted or replaced
-                    // So we can't getDir() on it
-                    subversionRevision.addDocument(
-                            new SubversionDocument(
-                                    svnLogEntryPath.getPath(),
-                                    Paths.get(
-                                            svnLogEntryPath.getPath())
-                                            .getFileName()
-                                            .toString(),
-                                    0,
-                                    svnLogEntryPath.getType(),
-                                    null
-                            )
-                    );
-                }
+                logger.debug("Extracting entry [{}]", entry.getKey());
+                subversionRevision.addDocument(
+                        new SubversionDocument(
+                                svnLogEntryPath,
+                                repository,
+                                logEntry.getRevision()
+                        )
+                );
             }
             result.add(subversionRevision);
         }
+        logger.info("Retrieved revisions from [{}] to [{}] : [{}] revisions", start, end, result.size());
         return result;
     }
 

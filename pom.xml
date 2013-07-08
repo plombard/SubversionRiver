@@ -4,7 +4,7 @@
 
     <groupId>org.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-river-subversion</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <packaging>jar</packaging>
 
     <name>elasticsearch-river-subversion</name>
@@ -130,11 +130,6 @@
             <groupId>com.github.tlrx</groupId>
             <artifactId>elasticsearch-test</artifactId>
             <version>0.0.9</version>
-        </dependency>
-        <dependency>
-            <groupId>com.google.code.findbugs</groupId>
-            <artifactId>jsr305</artifactId>
-            <version>1.3.9</version>
         </dependency>
     </dependencies>
 

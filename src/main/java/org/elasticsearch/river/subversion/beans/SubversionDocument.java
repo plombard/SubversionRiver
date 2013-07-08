@@ -21,7 +21,11 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
 import org.elasticsearch.river.subversion.SubversionCrawler;
 import org.tmatesoft.svn.core.SVNDirEntry;
+import org.tmatesoft.svn.core.SVNException;
+import org.tmatesoft.svn.core.SVNLogEntryPath;
 import org.tmatesoft.svn.core.io.SVNRepository;
+
+import java.nio.file.Paths;
 
 /**
  * JavaBean for handling JSON generation from SVNEntries
@@ -31,26 +35,46 @@ import org.tmatesoft.svn.core.io.SVNRepository;
 @SuppressWarnings("unused")
 public class SubversionDocument {
 
-    @Expose final String path;
-    @Expose final String name;
-    @Expose final long size;
-    @Expose final char change;
-    @Expose final String content;
+    @Expose final String path;    // File path
+    @Expose final String name;    // File name
+    @Expose final long size;      // File size
+    @Expose final char change;    // Type of change
+    @Expose final String content; // File content
+    @Expose final long from;      // Parent revision
+    @Expose final String origin;  // Parent path
 
-    public SubversionDocument(String path, String name, long size, char change, String content) {
-        this.path = path;
-        this.name = name;
-        this.size = size;
-        this.change = change;
-        this.content = content;
-    }
-
-    public SubversionDocument(SVNDirEntry entry, SVNRepository repository, char change) {
-        this.path = entry.getURL().toDecodedString();
-        this.content = SubversionCrawler.getContent(entry, repository);
-        this.name = entry.getName();
-        this.size = entry.getSize();
-        this.change = change;
+    public SubversionDocument(SVNLogEntryPath entryPath, SVNRepository repository, long revision)
+            throws SVNException {
+        this.path = entryPath.getPath();
+        this.change = entryPath.getType();
+        this.origin = entryPath.getCopyPath();
+        this.from = entryPath.getCopyRevision();
+        // First check the type of the changement ofthe entry,
+        // for it implies which type of info
+        // we'll be able to extract.
+        // If the path was added or modified,
+        // we'll get a DirEntry
+        if (change == 'A'
+                || change == 'M') {
+            SVNDirEntry dirEntry = repository.info(
+                    path,
+                    revision
+            );
+            // ...and init a SubversionDocument to add to the revision
+            this.content = SubversionCrawler.getContent(dirEntry, repository);
+            this.name = dirEntry.getName();
+            this.size = dirEntry.getSize();
+        } else {
+            // Else, the entry was deleted or replaced
+            // So we can't getDir() on it,
+            // and the content, size, etc are irrelevant.
+            this.content = null;
+            this.name = Paths.get(
+                    path)
+                    .getFileName()
+                    .toString();
+            this.size = 0;
+        }
     }
 
     public String json() {

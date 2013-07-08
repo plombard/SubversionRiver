@@ -199,7 +199,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     List<BulkRequestBuilder> bulks = Lists.newArrayList();
 
                     long lastRevision = SubversionCrawler.getLatestRevision(reposAsFile, path);
-                    logger.info("Checking last revision of repository : {}/{} --> [{}]",
+                    logger.debug("Checking last revision of repository : {}/{} --> [{}]",
                             reposAsFile, path, lastRevision);
 
                     // if indexed revision is the last revision, we have nothing to do
@@ -207,11 +207,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     if (indexedRevision < lastRevision) {
                         UpdatePolicy updatePolicy = getUpdatePolicy(lastRevision, bulkSize);
 
-                        logger.info("Indexing repository {}/{} from revision [{}] to [{}] incremental [{}]",
+                        logger.debug("Indexing repository {}/{} from revision [{}] to [{}] incremental [{}]",
                                 reposAsFile, path, updatePolicy.fromRevision, updatePolicy.toRevision, updatePolicy.incremental);
-
-                        logger.info("Now indexing repository {}/{} revision [{}] to [{}]",
-                                reposAsFile, path, updatePolicy.fromRevision, updatePolicy.toRevision);
 
                         // The total list of subversion documents is partitioned
                         // into smaller lists, of max size bulksize
@@ -268,7 +265,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             indexedRevision = lastRevision;
             executeBulks(bulks);
         } else {
-            logger.info("Nothing to index (latest revision reached ? [{}]) in {}/{}",
+            logger.debug("Nothing to index (latest revision reached ? [{}]) in {}/{}",
                     indexedRevision, repos, path);
         }
     }
