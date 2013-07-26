@@ -50,7 +50,7 @@ public class SubversionRiverTest {
     private static String REPOS;
     private static final String PATH = "/";
     private static final Long START_REVISION = 4L;
-    private static final String INDEX_NAME = "_river";
+    private static final String RIVER_KEYWORD = "_river";
     private static String INDEXED_REVISION_ID;
 
     @SuppressWarnings("ConstantConditions")
@@ -70,18 +70,18 @@ public class SubversionRiverTest {
     }
 
     @Test
-    @ElasticsearchIndex(indexName = INDEX_NAME)
+    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test00CreateIndex() {
         // Checks if the index has been created
         IndicesExistsResponse existResponse = adminClient.indices()
-                .prepareExists(INDEX_NAME)
+                .prepareExists(RIVER_KEYWORD)
                 .execute().actionGet();
 
         Assert.assertTrue("Index must exist", existResponse.isExists());
     }
 
     @Test
-    @ElasticsearchIndex(indexName = INDEX_NAME)
+    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test10IndexingFromRevision() throws IOException {
         // Index a new document
         Map<String, Object> json = new HashMap<String, Object>();
@@ -95,7 +95,7 @@ public class SubversionRiverTest {
                 .field("svn",json)
                 .endObject();
 
-        IndexResponse indexResponse = client1.prepareIndex(INDEX_NAME, "mysvnriver", "_meta")
+        IndexResponse indexResponse = client1.prepareIndex(RIVER_KEYWORD, "mysvnriver", "_meta")
                 .setSource(builder)
                 .execute()
                 .actionGet();
@@ -105,7 +105,7 @@ public class SubversionRiverTest {
     }
 
     @Test
-    @ElasticsearchIndex(indexName = INDEX_NAME)
+    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test11IndexingLastRevision() throws IOException {
         // Index a new document
         Map<String, Object> json = new HashMap<String, Object>();
@@ -118,7 +118,7 @@ public class SubversionRiverTest {
                 .field("svn",json)
                 .endObject();
 
-        IndexResponse indexResponse = client1.prepareIndex(INDEX_NAME, "mysvnriver2", "_meta")
+        IndexResponse indexResponse = client1.prepareIndex(RIVER_KEYWORD, "mysvnriver2", "_meta")
                 .setSource(builder)
                 .execute()
                 .actionGet();
@@ -128,7 +128,7 @@ public class SubversionRiverTest {
     }
 
     @Test
-    @ElasticsearchIndex(indexName = INDEX_NAME)
+    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test20Searching() {
         // Wait 2s for the indexing to take place.
         try {
@@ -155,7 +155,7 @@ public class SubversionRiverTest {
     }
 
     @Test
-    @ElasticsearchIndex(indexName = INDEX_NAME)
+    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test21GetIndexedRevision() {
         // Wait 2s for the indexing to take place.
         try {
@@ -164,11 +164,13 @@ public class SubversionRiverTest {
             currentThread().interrupt();
         }
 
-        GetResponse response = client1.prepareGet(INDEX_NAME, "mysvnriver", INDEXED_REVISION_ID)
-                .setFields("indexed_revision")
+        System.out.println("Preparing to get Indexed Revision on index [mysvnriver]" +
+                " with id ["+INDEXED_REVISION_ID+"]");
+        GetResponse response = client1.prepareGet("mysvnriver", "indexed_revision", INDEXED_REVISION_ID)
+                .setFields("revision")
                 .execute()
                 .actionGet();
-        Long result = (Long) response.getField("indexed_revision").getValue();
+        Long result = (Long) response.getField("revision").getValue();
         System.out.println("Get Indexed Revision Response index ["+response.getIndex()
                 +"] type ["+response.getType()
                 +"] id ["+response.getId()
@@ -179,7 +181,7 @@ public class SubversionRiverTest {
     }
 
     @Test
-    @ElasticsearchIndex(indexName = INDEX_NAME)
+    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test22GetMapping() {
         // Wait 2s for the indexing to take place.
         try {

@@ -39,11 +39,13 @@ import org.elasticsearch.river.subversion.beans.SubversionRevision;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
 import static org.elasticsearch.client.Requests.indexRequest;
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 
 /**
  * River for SVN repositories
@@ -117,6 +119,11 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     .setType("svn")
                     .setSource(SubversionMapping.getInstance())
                     .execute().actionGet();
+            client.admin().indices()
+                    .preparePutMapping(indexName)
+                    .setType("indexed_revision")
+                    .setSource(IndexedRevisionMapping.getInstance())
+                    .execute().actionGet();
         } catch (Exception e) {
             Throwable cause = ExceptionsHelper.unwrapCause(e);
             if (cause instanceof IndexAlreadyExistsException) {
@@ -162,18 +169,18 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     indexName,existResponse.isExists());
             return NOT_INDEXED_REVISION;
         }
-        GetResponse response = client.prepareGet("_river", indexName, indexedRevisionID)
-                .setFields("indexed_revision")
+        GetResponse response = client.prepareGet(indexName, "indexed_revision", indexedRevisionID)
+                .setFields("revision")
                 .execute()
                 .actionGet();
         logger.info("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
-                "_river", indexName, indexedRevisionID, response.getFields());
+                indexName, "indexed_revision", indexedRevisionID, response.getFields());
 
-        if(response.getField("indexed_revision") == null
+        if(response.getField("revision") == null
                 || !response.isExists()) {
             return NOT_INDEXED_REVISION;
         } else {
-            return (Long) response.getField("indexed_revision").getValue();
+            return (Long) response.getField("revision").getValue();
         }
     }
 
@@ -277,12 +284,24 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private void executeBulks(List<BulkRequestBuilder> bulks) {
         for( BulkRequestBuilder bulk : bulks)  {
             // Update the last indexed revision
-            bulk.add(indexRequest("_river")
-                    .type(indexName)
-                    .id(indexedRevisionID)
-                    .source("indexed_revision", indexedRevision)
-            );
-            logger.info("Indexed revision of repository : {} --> [{}]", path, indexedRevision);
+            try {
+                bulk.add(indexRequest(indexName)
+                        .type("indexed_revision")
+                        .id(indexedRevisionID)
+                        .source(
+                                jsonBuilder()
+                                    .startObject()
+                                    .field("revision", indexedRevision)
+                                .endObject()
+                        )
+                );
+            } catch (IOException e) {
+                logger.error("failed to update indexed_revision [{}] on index [{}]" +
+                        " because of Exception {}, aborting bulk operation",
+                        indexedRevision, indexName, e);
+                return;
+            }
+            logger.info("Indexed revision of repository : {}{} --> [{}]", repos, path, indexedRevision);
 
             try {
                 logger.info("Execute bulk {} actions", bulk.numberOfActions());
