@@ -116,7 +116,8 @@ public class SubversionCrawler {
         }
         SVNRepository repository = SVNRepositoryFactory.create(svnUrl, ISVNSession.KEEP_ALIVE);
         Long end = endOp.isPresent() ? endOp.get() : repository.getLatestRevision();
-        logger.info("Retrieving revisions from [{}] to [{}]", start, end);
+        logger.info("Retrieving revisions of {}{} from [{}] to [{}]",
+                reposAsURL, path, start, end);
 
         String[] targetPaths = new String[1];
         targetPaths[0] = path;
@@ -153,7 +154,8 @@ public class SubversionCrawler {
             }
             result.add(subversionRevision);
         }
-        logger.info("Retrieved revisions from [{}] to [{}] : [{}] revisions", start, end, result.size());
+        logger.info("Retrieved revisions of {}{} from [{}] to [{}] : [{}] revisions",
+                reposAsURL, path, start, end, result.size());
         return result;
     }
 
