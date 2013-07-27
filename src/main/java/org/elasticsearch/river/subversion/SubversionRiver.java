@@ -38,9 +38,8 @@ import org.elasticsearch.river.RiverSettings;
 import org.elasticsearch.river.subversion.beans.SubversionRevision;
 import org.elasticsearch.threadpool.ThreadPool;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -53,11 +52,13 @@ import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 public class SubversionRiver extends AbstractRiverComponent implements River {
 
     private Client client;
+    @SuppressWarnings("unused")
     private ThreadPool threadPool;
 
     private String indexName = null;
     private String typeName = null;
     private String repos;
+    private String userInfo;
     private String path;
     private int updateRate;
     private int bulkSize;
@@ -86,6 +87,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("svn");
 
             repos = XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null);
+            userInfo = XContentMapValues.nodeStringValue(subversionSettings.get("userInfo"), "anonymous:password");
             path = XContentMapValues.nodeStringValue(subversionSettings.get("path"), "/");
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
             indexName = riverName.name();
@@ -126,11 +128,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     .execute().actionGet();
         } catch (Exception e) {
             Throwable cause = ExceptionsHelper.unwrapCause(e);
-            if (cause instanceof IndexAlreadyExistsException) {
-                // that's fine
-            } else if (cause instanceof ClusterBlockException) {
-                // ok, not recovered yet..., lets start indexing and hope we recover by the first bulk
-            } else {
+            if (!(cause instanceof IndexAlreadyExistsException) && !(cause instanceof ClusterBlockException)) {
                 logger.warn("failed to create index [{}], disabling river...", e, indexName);
                 return;
             }
@@ -199,15 +197,15 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 try {
                     int totalNumberOfActions = 0;
                     logger.info("Indexing subversion repository : {}/{}", repos, path);
-                    File reposAsFile = new File(new URI(repos));
+                    URL reposAsURL = new URL(repos);
 
                     indexedRevision = getIndexedRevision();
                     logger.info("Indexed Revision Value [{}]", indexedRevision);
                     List<BulkRequestBuilder> bulks = Lists.newArrayList();
 
-                    long lastRevision = SubversionCrawler.getLatestRevision(reposAsFile, path);
+                    long lastRevision = SubversionCrawler.getLatestRevision(reposAsURL, userInfo, path);
                     logger.debug("Checking last revision of repository : {}/{} --> [{}]",
-                            reposAsFile, path, lastRevision);
+                            reposAsURL, path, lastRevision);
 
                     // if indexed revision is the last revision, we have nothing to do
                     // but if it's not, we index the new subversion updates.
@@ -215,13 +213,14 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         UpdatePolicy updatePolicy = getUpdatePolicy(lastRevision, bulkSize);
 
                         logger.debug("Indexing repository {}/{} from revision [{}] to [{}] incremental [{}]",
-                                reposAsFile, path, updatePolicy.fromRevision, updatePolicy.toRevision, updatePolicy.incremental);
+                                reposAsURL, path, updatePolicy.fromRevision, updatePolicy.toRevision, updatePolicy.incremental);
 
                         // The total list of subversion documents is partitioned
                         // into smaller lists, of max size bulksize
                         List<SubversionRevision> subversionRevisionsBulk =
                                 SubversionCrawler.getRevisions(
-                                        reposAsFile,
+                                        reposAsURL,
+                                        userInfo,
                                         path,
                                         Optional.of(updatePolicy.fromRevision),
                                         Optional.of(updatePolicy.toRevision)
@@ -290,9 +289,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         .id(indexedRevisionID)
                         .source(
                                 jsonBuilder()
-                                    .startObject()
-                                    .field("revision", indexedRevision)
-                                .endObject()
+                                        .startObject()
+                                        .field("revision", indexedRevision)
+                                        .endObject()
                         )
                 );
             } catch (IOException e) {

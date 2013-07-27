@@ -24,13 +24,18 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.river.subversion.beans.SubversionDocument;
 import org.elasticsearch.river.subversion.beans.SubversionRevision;
 import org.tmatesoft.svn.core.*;
+import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
+import org.tmatesoft.svn.core.internal.io.svn.SVNRepositoryFactoryImpl;
+import org.tmatesoft.svn.core.io.ISVNSession;
 import org.tmatesoft.svn.core.io.SVNRepository;
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.UnsupportedEncodingException;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -42,18 +47,40 @@ public class SubversionCrawler {
 
     private static ESLogger logger = Loggers.getLogger(SubversionCrawler.class);
 
+    // Setup factories to use every protocol :
+    // svn://, svn+xxx://	SVNRepositoryFactoryImpl (org.tmatesoft.svn.core.internal.io.svn)
+    // http://, https://	DAVRepositoryFactory (org.tmatesoft.svn.core.internal.io.dav)
+    // file:/// (FSFS only)	FSRepositoryFactory (org.tmatesoft.svn.core.internal.io.fs)
+    static {
+        FSRepositoryFactory.setup();
+        SVNRepositoryFactoryImpl.setup();
+        DAVRepositoryFactory.setup();
+    }
+
     /**
      * Return the latest revision of a SVN directory
      *
-     * @param repos repository
+     * @param reposAsURL URL to the repository
+     * @param userInfo login/password to the repository
      * @param path  path to the directory
      * @return latest revision
      * @throws SVNException
      */
-    public static long getLatestRevision(File repos, String path) throws SVNException {
-        FSRepositoryFactory.setup();
-        SVNRepository repository;
-        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
+    public static long getLatestRevision(URL reposAsURL, String userInfo, String path) throws SVNException, URISyntaxException {
+        SVNURL svnUrl;
+        if(reposAsURL.getProtocol().equalsIgnoreCase("file")) {
+            svnUrl = SVNURL.fromFile(new File(reposAsURL.toURI()));
+        } else {
+            svnUrl = SVNURL.create(
+                    reposAsURL.getProtocol(),
+                    userInfo,
+                    reposAsURL.getHost(),
+                    reposAsURL.getPort(),
+                    reposAsURL.getPath(),
+                    false
+            );
+        }
+        SVNRepository repository = SVNRepositoryFactory.create(svnUrl);
         logger.debug("Repository Root: {}", repository.getRepositoryRoot(true));
         logger.debug("Repository UUID: {}", repository.getRepositoryUUID(true));
         logger.debug("Repository HEAD Revision: {}", repository.getLatestRevision());
@@ -63,18 +90,31 @@ public class SubversionCrawler {
         return repository.getDir(path, -1, false, null).getRevision();
     }
 
-    public static List<SubversionRevision> getRevisions(File repos,
+    public static List<SubversionRevision> getRevisions(URL reposAsURL,
+                                                        String userInfo,
                                                         String path,
                                                         Optional<Long> startOp,
                                                         Optional<Long> endOp)
-            throws SVNException {
+            throws SVNException, URISyntaxException {
         List<SubversionRevision> result = Lists.newArrayList();
         // Init the first revision to get
         Long start = startOp.isPresent() ? startOp.get() : 1;
         // Init the last revision to get
-        FSRepositoryFactory.setup();
-        SVNRepository repository;
-        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
+        // (but first, init the repos)
+        SVNURL svnUrl;
+        if(reposAsURL.getProtocol().equalsIgnoreCase("file")) {
+            svnUrl = SVNURL.fromFile(new File(reposAsURL.toURI()));
+        } else {
+            svnUrl = SVNURL.create(
+                    reposAsURL.getProtocol(),
+                    userInfo,
+                    reposAsURL.getHost(),
+                    reposAsURL.getPort(),
+                    reposAsURL.getPath(),
+                    false
+            );
+        }
+        SVNRepository repository = SVNRepositoryFactory.create(svnUrl, ISVNSession.KEEP_ALIVE);
         Long end = endOp.isPresent() ? endOp.get() : repository.getLatestRevision();
         logger.info("Retrieving revisions from [{}] to [{}]", start, end);
 

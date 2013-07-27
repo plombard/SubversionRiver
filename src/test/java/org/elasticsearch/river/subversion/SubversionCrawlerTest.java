@@ -13,7 +13,9 @@ import org.tmatesoft.svn.core.io.SVNRepository;
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
 
 import java.io.File;
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.List;
 
 import static org.elasticsearch.river.subversion.SubversionCrawler.getContent;
@@ -25,21 +27,22 @@ import static org.elasticsearch.river.subversion.SubversionCrawler.getRevisions;
  */
 public class SubversionCrawlerTest {
 
-    private File repos;
+    private URL reposAsURL;
     private String path;
 
     @SuppressWarnings("ConstantConditions")
     @Before
-    public void setUp() throws URISyntaxException {
-        repos = new File(Thread.currentThread().getContextClassLoader()
-                .getResource("TEST_REPOS").toURI());
+    public void setUp() throws URISyntaxException, MalformedURLException {
+        reposAsURL = Thread.currentThread().getContextClassLoader()
+                .getResource("TEST_REPOS").toURI().toURL();
         path = "/";
     }
 
     @Test
-    public void testGetRevisions() throws SVNException {
+    public void testGetRevisions() throws SVNException, URISyntaxException {
         List<SubversionRevision> result = getRevisions(
-                repos,
+                reposAsURL,
+                "",
                 path,
                 Optional.<Long>absent(),
                 Optional.<Long>absent()
@@ -52,9 +55,10 @@ public class SubversionCrawlerTest {
     }
 
     @Test
-    public void testGetRevisionsModule1() throws SVNException {
+    public void testGetRevisionsModule1() throws SVNException, URISyntaxException {
         List<SubversionRevision> result = getRevisions(
-                repos,
+                reposAsURL,
+                "",
                 "/module1",
                 Optional.<Long>absent(),
                 Optional.<Long>absent()
@@ -67,20 +71,22 @@ public class SubversionCrawlerTest {
     }
 
     @Test
-    public void testGetContent() throws SVNException {
+    public void testGetContent() throws SVNException, URISyntaxException {
         FSRepositoryFactory.setup();
         SVNRepository repository;
-        repository = SVNRepositoryFactory.create(SVNURL.fromFile(repos));
+        repository = SVNRepositoryFactory.create(
+                SVNURL.fromFile(new File(reposAsURL.toURI()))
+        );
         SVNDirEntry entry = repository.info("module1/trunk/watchlist.txt", 7L);
         String result = getContent(entry, repository);
         Assert.assertNotNull("This file cannot be empty/null", result);
     }
 
     @Test
-    public void testGetLatestRevision() throws SVNException {
-        long revision = SubversionCrawler.getLatestRevision(repos,path);
+    public void testGetLatestRevision() throws SVNException, URISyntaxException {
+        long revision = SubversionCrawler.getLatestRevision(reposAsURL, "",path);
 
-        System.out.println("Latest revision of "+repos+"/"+path+" == "+revision);
+        System.out.println("Latest revision of "+ reposAsURL +"/"+path+" == "+revision);
         Assert.assertTrue(revision > 0);
     }
 
