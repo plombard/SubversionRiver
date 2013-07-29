@@ -43,6 +43,7 @@ public class SubversionCrawlerTest {
         List<SubversionRevision> result = getRevisions(
                 reposAsURL,
                 "",
+                "",
                 path,
                 Optional.<Long>absent(),
                 Optional.<Long>absent()
@@ -58,6 +59,7 @@ public class SubversionCrawlerTest {
     public void testGetRevisionsModule1() throws SVNException, URISyntaxException {
         List<SubversionRevision> result = getRevisions(
                 reposAsURL,
+                "",
                 "",
                 "/module1",
                 Optional.<Long>absent(),
@@ -84,7 +86,7 @@ public class SubversionCrawlerTest {
 
     @Test
     public void testGetLatestRevision() throws SVNException, URISyntaxException {
-        long revision = SubversionCrawler.getLatestRevision(reposAsURL, "",path);
+        long revision = SubversionCrawler.getLatestRevision(reposAsURL, "", "",path);
 
         System.out.println("Latest revision of "+ reposAsURL +"/"+path+" == "+revision);
         Assert.assertTrue(revision > 0);

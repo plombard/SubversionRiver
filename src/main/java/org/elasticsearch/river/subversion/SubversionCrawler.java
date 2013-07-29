@@ -24,12 +24,14 @@ import org.elasticsearch.common.logging.Loggers;
 import org.elasticsearch.river.subversion.beans.SubversionDocument;
 import org.elasticsearch.river.subversion.beans.SubversionRevision;
 import org.tmatesoft.svn.core.*;
+import org.tmatesoft.svn.core.auth.ISVNAuthenticationManager;
 import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
 import org.tmatesoft.svn.core.internal.io.fs.FSRepositoryFactory;
 import org.tmatesoft.svn.core.internal.io.svn.SVNRepositoryFactoryImpl;
 import org.tmatesoft.svn.core.io.ISVNSession;
 import org.tmatesoft.svn.core.io.SVNRepository;
 import org.tmatesoft.svn.core.io.SVNRepositoryFactory;
+import org.tmatesoft.svn.core.wc.SVNWCUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -61,26 +63,32 @@ public class SubversionCrawler {
      * Return the latest revision of a SVN directory
      *
      * @param reposAsURL URL to the repository
-     * @param userInfo login/password to the repository
+     * @param login login to the repository
+     * @param password password to the repository
      * @param path  path to the directory
      * @return latest revision
      * @throws SVNException
      */
-    public static long getLatestRevision(URL reposAsURL, String userInfo, String path) throws SVNException, URISyntaxException {
+    public static long getLatestRevision(URL reposAsURL, String login, String password, String path) throws SVNException, URISyntaxException {
         SVNURL svnUrl;
+        SVNRepository repository;
         if(reposAsURL.getProtocol().equalsIgnoreCase("file")) {
             svnUrl = SVNURL.fromFile(new File(reposAsURL.toURI()));
+            repository = SVNRepositoryFactory.create(svnUrl);
         } else {
             svnUrl = SVNURL.create(
                     reposAsURL.getProtocol(),
-                    userInfo,
+                    "",
                     reposAsURL.getHost(),
                     reposAsURL.getPort(),
                     reposAsURL.getPath(),
                     false
             );
+            repository = SVNRepositoryFactory.create(svnUrl);
+            ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager(login, password);
+            repository.setAuthenticationManager( authManager );
         }
-        SVNRepository repository = SVNRepositoryFactory.create(svnUrl);
+
         logger.debug("Repository Root: {}", repository.getRepositoryRoot(true));
         logger.debug("Repository UUID: {}", repository.getRepositoryUUID(true));
         logger.debug("Repository HEAD Revision: {}", repository.getLatestRevision());
@@ -91,7 +99,8 @@ public class SubversionCrawler {
     }
 
     public static List<SubversionRevision> getRevisions(URL reposAsURL,
-                                                        String userInfo,
+                                                        String login,
+                                                        String password,
                                                         String path,
                                                         Optional<Long> startOp,
                                                         Optional<Long> endOp)
@@ -102,19 +111,23 @@ public class SubversionCrawler {
         // Init the last revision to get
         // (but first, init the repos)
         SVNURL svnUrl;
+        SVNRepository repository;
         if(reposAsURL.getProtocol().equalsIgnoreCase("file")) {
             svnUrl = SVNURL.fromFile(new File(reposAsURL.toURI()));
+            repository = SVNRepositoryFactory.create(svnUrl, ISVNSession.KEEP_ALIVE);
         } else {
             svnUrl = SVNURL.create(
                     reposAsURL.getProtocol(),
-                    userInfo,
+                    "",
                     reposAsURL.getHost(),
                     reposAsURL.getPort(),
                     reposAsURL.getPath(),
                     false
             );
+            repository = SVNRepositoryFactory.create(svnUrl);
+            ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager(login, password);
+            repository.setAuthenticationManager( authManager );
         }
-        SVNRepository repository = SVNRepositoryFactory.create(svnUrl, ISVNSession.KEEP_ALIVE);
         Long end = endOp.isPresent() ? endOp.get() : repository.getLatestRevision();
         logger.info("Retrieving revisions of {}{} from [{}] to [{}]",
                 reposAsURL, path, start, end);

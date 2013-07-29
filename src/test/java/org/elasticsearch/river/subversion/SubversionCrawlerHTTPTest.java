@@ -16,7 +16,8 @@ import java.net.URL;
 public class SubversionCrawlerHTTPTest {
 
     private URL reposAsURL;
-    private String userInfo;
+    private String login;
+    private String password;
     private String path;
 
     @SuppressWarnings("ConstantConditions")
@@ -24,12 +25,13 @@ public class SubversionCrawlerHTTPTest {
     public void setUp() throws URISyntaxException, MalformedURLException {
         reposAsURL = new URL("http://google-code-prettify.googlecode.com/svn");
         path = "/trunk";
-        userInfo = "anonymous:password";
+        login = "anonymous";
+        password = "password";
     }
 
     @Test
     public void testGetLatestRevision() throws SVNException, URISyntaxException {
-        long revision = SubversionCrawler.getLatestRevision(reposAsURL, userInfo,path);
+        long revision = SubversionCrawler.getLatestRevision(reposAsURL, login, password,path);
 
         System.out.println("Latest revision of "+ reposAsURL +path+" == "+revision);
         Assert.assertTrue(revision > 0);

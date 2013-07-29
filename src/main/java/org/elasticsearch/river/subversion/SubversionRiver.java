@@ -58,7 +58,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private String indexName = null;
     private String typeName = null;
     private String repos;
-    private String userInfo;
+    private String login;
+    private String password;
     private String path;
     private int updateRate;
     private int bulkSize;
@@ -87,7 +88,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("svn");
 
             repos = XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null);
-            userInfo = XContentMapValues.nodeStringValue(subversionSettings.get("userInfo"), "anonymous:password");
+            login = XContentMapValues.nodeStringValue(subversionSettings.get("login"), "anonymous");
+            password = XContentMapValues.nodeStringValue(subversionSettings.get("password"), "password");
             path = XContentMapValues.nodeStringValue(subversionSettings.get("path"), "/");
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
             indexName = riverName.name();
@@ -167,18 +169,31 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     indexName,existResponse.isExists());
             return NOT_INDEXED_REVISION;
         }
-        GetResponse response = client.prepareGet(indexName, "indexed_revision", indexedRevisionID)
-                .setFields("revision")
-                .execute()
-                .actionGet();
-        logger.debug("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
-                indexName, "indexed_revision", indexedRevisionID, response.getFields());
 
-        if(response.getField("revision") == null
-                || !response.isExists()) {
+        // Attempt to get the last indexed revision with a GET.
+        // A NullPointerException basically means that there is no indexed_revision.
+        try {
+            // Wait for the index availability
+            client.admin().cluster().prepareHealth()
+                    .setWaitForYellowStatus()
+                    .execute().actionGet();
+            GetResponse response = client.prepareGet(indexName, "indexed_revision", indexedRevisionID)
+                    .setFields("revision")
+                    .execute()
+                    .actionGet();
+            logger.debug("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
+                    indexName, "indexed_revision", indexedRevisionID, response.getFields());
+
+            if(response.getField("revision") == null
+                    || !response.isExists()) {
+                return NOT_INDEXED_REVISION;
+            } else {
+                return (Long) response.getField("revision").getValue();
+            }
+        } catch( NullPointerException ex) {
+            logger.info("Exception encountered while GETting indexed_revision on [{}] (does not exist ?) :",
+                    indexName, ex);
             return NOT_INDEXED_REVISION;
-        } else {
-            return (Long) response.getField("revision").getValue();
         }
     }
 
@@ -203,7 +218,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     logger.info("Indexed Revision Value [{}]", indexedRevision);
                     List<BulkRequestBuilder> bulks = Lists.newArrayList();
 
-                    long lastRevision = SubversionCrawler.getLatestRevision(reposAsURL, userInfo, path);
+                    long lastRevision = SubversionCrawler.getLatestRevision(reposAsURL, login, password, path);
                     logger.debug("Checking last revision of repository : {}/{} --> [{}]",
                             reposAsURL, path, lastRevision);
 
@@ -220,7 +235,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         List<SubversionRevision> subversionRevisionsBulk =
                                 SubversionCrawler.getRevisions(
                                         reposAsURL,
-                                        userInfo,
+                                        login,
+                                        password,
                                         path,
                                         Optional.of(updatePolicy.fromRevision),
                                         Optional.of(updatePolicy.toRevision)
