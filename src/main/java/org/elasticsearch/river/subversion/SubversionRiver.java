@@ -35,7 +35,11 @@ import org.elasticsearch.river.AbstractRiverComponent;
 import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
-import org.elasticsearch.river.subversion.beans.SubversionRevision;
+import org.elasticsearch.river.subversion.bean.SubversionDocument;
+import org.elasticsearch.river.subversion.bean.SubversionRevision;
+import org.elasticsearch.river.subversion.mapping.IndexedRevisionMapping;
+import org.elasticsearch.river.subversion.mapping.SubversionDocumentMapping;
+import org.elasticsearch.river.subversion.mapping.SubversionRevisionMapping;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
@@ -120,8 +124,13 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                     .execute().actionGet();
             client.admin().indices()
                     .preparePutMapping(indexName)
-                    .setType("svn")
-                    .setSource(SubversionMapping.getInstance())
+                    .setType(SubversionRevision.TYPE_NAME)
+                    .setSource(SubversionRevisionMapping.getInstance())
+                    .execute().actionGet();
+            client.admin().indices()
+                    .preparePutMapping(indexName)
+                    .setType(SubversionDocument.TYPE_NAME)
+                    .setSource(SubversionDocumentMapping.getInstance())
                     .execute().actionGet();
             client.admin().indices()
                     .preparePutMapping(indexName)
@@ -158,6 +167,10 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
      * @return last indexed revision
      */
     private Long getIndexedRevision() {
+        // Wait for the index availability
+        client.admin().cluster().prepareHealth()
+                .setWaitForYellowStatus()
+                .execute().actionGet();
         // Checks if the index has been created
         IndicesExistsResponse existResponse = client.admin().indices()
                 .prepareExists(indexName)
@@ -173,10 +186,6 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         // Attempt to get the last indexed revision with a GET.
         // A NullPointerException basically means that there is no indexed_revision.
         try {
-            // Wait for the index availability
-            client.admin().cluster().prepareHealth()
-                    .setWaitForYellowStatus()
-                    .execute().actionGet();
             GetResponse response = client.prepareGet(indexName, "indexed_revision", indexedRevisionID)
                     .setFields("revision")
                     .execute()
@@ -244,10 +253,20 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         // Send the revisions in bulk to the index
                         BulkRequestBuilder bulk = client.prepareBulk();
                         for (SubversionRevision svnRevision : subversionRevisionsBulk) {
+                            // First the revision...
                             bulk.add(indexRequest(indexName)
-                                    .type(typeName)
+                                    .type(SubversionRevision.TYPE_NAME)
                                     .id(svnRevision.id())
-                                    .source(svnRevision.json()));
+                                    .source(svnRevision.json())
+                            );
+                            // ... and then the documents/files
+                            for (SubversionDocument svnDocument : svnRevision.getDocuments()) {
+                                bulk.add(indexRequest(indexName)
+                                        .type(SubversionDocument.TYPE_NAME)
+                                        .parent(svnRevision.id())
+                                        .source(svnDocument.json())
+                                );
+                            }
                             logger.debug("Document added to queue :{}", svnRevision.json());
                         }
                         bulks.add(bulk);

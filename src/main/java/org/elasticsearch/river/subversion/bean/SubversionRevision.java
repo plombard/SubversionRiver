@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.elasticsearch.river.subversion.beans;
+package org.elasticsearch.river.subversion.bean;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashFunction;
@@ -34,12 +34,15 @@ import java.util.List;
 @SuppressWarnings("unused")
 public class SubversionRevision {
 
-    @Expose List<SubversionDocument> documents;
+
+    List<SubversionDocument> documents;
     @Expose final String author;
     @Expose final String repository;
     @Expose final long revision;
     @Expose final Date date;
     @Expose final String message;
+
+    public static final String TYPE_NAME = "svnrevision";
 
     private static transient final HashFunction hf = Hashing.md5();
     // TODO : find a workaround with joda-time
@@ -56,6 +59,10 @@ public class SubversionRevision {
 
     public void addDocument(SubversionDocument doc) {
         documents.add(doc);
+    }
+
+    public List<SubversionDocument> getDocuments() {
+        return documents;
     }
 
     public String json() {

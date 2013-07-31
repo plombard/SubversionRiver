@@ -4,7 +4,7 @@
 
     <groupId>org.elasticsearch.plugin</groupId>
     <artifactId>elasticsearch-river-subversion</artifactId>
-    <version>0.3.1</version>
+    <version>0.3.2</version>
     <packaging>jar</packaging>
 
     <name>elasticsearch-river-subversion</name>

@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.elasticsearch.river.subversion.beans;
+package org.elasticsearch.river.subversion.bean;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -42,6 +42,8 @@ public class SubversionDocument {
     @Expose final String content; // File content
     @Expose final long from;      // Parent revision
     @Expose final String origin;  // Parent path
+
+    public static final String TYPE_NAME = "svndocument";
 
     public SubversionDocument(SVNLogEntryPath entryPath, SVNRepository repository, long revision)
             throws SVNException {

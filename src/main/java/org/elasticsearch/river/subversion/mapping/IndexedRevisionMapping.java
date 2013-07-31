@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.elasticsearch.river.subversion;
+package org.elasticsearch.river.subversion.mapping;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 

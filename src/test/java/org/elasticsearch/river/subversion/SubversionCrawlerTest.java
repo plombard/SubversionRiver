@@ -1,7 +1,7 @@
 package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Optional;
-import org.elasticsearch.river.subversion.beans.SubversionRevision;
+import org.elasticsearch.river.subversion.bean.SubversionRevision;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
