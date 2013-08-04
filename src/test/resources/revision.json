@@ -1,13 +1,4 @@
-{"documents": [
-    {
-        "path": "/module1/trunk/watchlist.txt",
-        "name": "watchlist.txt",
-        "size": 23,
-        "change": "M",
-        "content": "Episode 9...  .______.\n",
-        "from": -1
-    }
-],
+{
     "author": "Pascal.Lombard",
     "repository": "/home/Pascal.Lombard/Workspace/workspace-git/SubversionRiver/target/test-classes/TEST_REPOS",
     "revision": 6,

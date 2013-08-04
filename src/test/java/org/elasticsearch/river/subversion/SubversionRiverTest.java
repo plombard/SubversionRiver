@@ -18,7 +18,7 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.river.subversion.bean.SubversionRevision;
+import org.elasticsearch.river.subversion.bean.SubversionDocument;
 import org.elasticsearch.search.SearchHit;
 import org.junit.Assert;
 import org.junit.Before;
@@ -139,7 +139,7 @@ public class SubversionRiverTest {
         }
 
         SearchResponse searchResponse = client1.prepareSearch("mysvnriver")
-                .setQuery(QueryBuilders.fieldQuery("name", "watchlist.txt"))
+                .setQuery(QueryBuilders.matchPhrasePrefixQuery("name", "watchlist"))
                 .execute()
                 .actionGet();
 
@@ -195,7 +195,7 @@ public class SubversionRiverTest {
                 .setFilterIndices("mysvnriver")
                 .execute().actionGet().getState();
         IndexMetaData imd = cs.getMetaData().index("mysvnriver");
-        MappingMetaData mdd = imd.mapping(SubversionRevision.TYPE_NAME);
+        MappingMetaData mdd = imd.mapping(SubversionDocument.TYPE_NAME);
 
         System.out.println("Get Mapping"
                 +" type ["+mdd.type()
@@ -203,7 +203,7 @@ public class SubversionRiverTest {
                 +"] source ["+mdd.source()+"]"
         );
 
-        Assert.assertNotNull("Mapping for SubversionRevision must be set", mdd.source());
+        Assert.assertNotNull("Mapping for SubversionDocument must be set", mdd.source());
     }
 
 }

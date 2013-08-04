@@ -47,7 +47,7 @@ public class SubversionDocument {
 
     public SubversionDocument(SVNLogEntryPath entryPath, SVNRepository repository, long revision)
             throws SVNException {
-        this.path = entryPath.getPath();
+        this.path = Paths.get(entryPath.getPath()).getParent().toString();
         this.change = entryPath.getType();
         this.origin = entryPath.getCopyPath();
         this.from = entryPath.getCopyRevision();
@@ -59,7 +59,7 @@ public class SubversionDocument {
         if (change == 'A'
                 || change == 'M') {
             SVNDirEntry dirEntry = repository.info(
-                    path,
+                    entryPath.getPath(),
                     revision
             );
             // ...and init a SubversionDocument to add to the revision
@@ -72,7 +72,7 @@ public class SubversionDocument {
             // and the content, size, etc are irrelevant.
             this.content = null;
             this.name = Paths.get(
-                    path)
+                    entryPath.getPath())
                     .getFileName()
                     .toString();
             this.size = 0;

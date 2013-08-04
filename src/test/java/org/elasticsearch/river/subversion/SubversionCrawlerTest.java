@@ -1,6 +1,7 @@
 package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Optional;
+import org.elasticsearch.river.subversion.bean.SubversionDocument;
 import org.elasticsearch.river.subversion.bean.SubversionRevision;
 import org.junit.Assert;
 import org.junit.Before;
@@ -67,6 +68,9 @@ public class SubversionCrawlerTest {
         );
         for( SubversionRevision revision : result ) {
             System.out.println(revision.json());
+            for( SubversionDocument document : revision.getDocuments() ) {
+                System.out.println(document.json());
+            }
         }
 
         Assert.assertTrue("This repository has normally 5 revisions",result.size() == 5);

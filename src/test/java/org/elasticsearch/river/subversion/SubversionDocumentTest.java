@@ -3,7 +3,9 @@ package org.elasticsearch.river.subversion;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.elasticsearch.river.subversion.bean.SubversionDocument;
+import org.elasticsearch.river.subversion.bean.SubversionRevision;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -14,27 +16,34 @@ import static org.junit.Assert.assertNotNull;
 
 public class SubversionDocumentTest {
 
-    SubversionDocument document1;
-    SubversionDocument document2;
+    SubversionDocument document;
+    SubversionRevision revision;
 
     @SuppressWarnings("ConstantConditions")
     @Before
     public void setUp() throws Exception {
         File myTestFile1;
         File myTestFile2;
-        myTestFile1 = new File(currentThread().getContextClassLoader().getResource("document1.json").toURI());
-        myTestFile2 = new File(currentThread().getContextClassLoader().getResource("document2.json").toURI());
-        Gson gson = new Gson();
-        document1 = gson.fromJson(Files.newReader(myTestFile1, Charsets.UTF_8),
+        myTestFile1 = new File(currentThread().getContextClassLoader().getResource("document.json").toURI());
+        myTestFile2 = new File(currentThread().getContextClassLoader().getResource("revision.json").toURI());
+        Gson gson = new GsonBuilder().setDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ").create();
+        document = gson.fromJson(Files.newReader(myTestFile1, Charsets.UTF_8),
                 SubversionDocument.class);
-        document2 = gson.fromJson(Files.newReader(myTestFile2, Charsets.UTF_8),
-                SubversionDocument.class);
+        revision = gson.fromJson(Files.newReader(myTestFile2, Charsets.UTF_8),
+                SubversionRevision.class);
     }
 
     @Test
-    public void testJson() throws Exception {
-        System.out.println(document1.json());
-        assertNotNull(document1.json());
+    public void testDocumentJson() throws Exception {
+        System.out.println(document.json());
+        assertNotNull(document.json());
     }
+
+    @Test
+    public void testRevisionJson() throws Exception {
+        System.out.println(revision.json());
+        assertNotNull(revision.json());
+    }
+
 
 }
