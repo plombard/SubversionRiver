@@ -10,7 +10,7 @@ After downloading the sources, run the task `mvn package`.
 
 Use the elasticsearch plugin manager to install the plugin :
 
-    $ /path-to/elasticsearch/bin/plugin -url file:./target/release/elasticsearch-river-subversion-0.3.1.zip -install river-subversion
+    $ /path-to/elasticsearch/bin/plugin -url file:./target/release/elasticsearch-river-subversion-0.3.3.zip -install river-subversion
 
 ### Creating a Subversion river ###
 Just create a new river of type "svn" and give it at least a repository and a path to index ("/" for the entire repos) :

@@ -161,7 +161,8 @@ public class SubversionCrawler {
                         new SubversionDocument(
                                 svnLogEntryPath,
                                 repository,
-                                logEntry.getRevision()
+                                logEntry.getRevision(),
+                                subversionRevision
                         )
                 );
             }

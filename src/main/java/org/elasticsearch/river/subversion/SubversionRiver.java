@@ -343,6 +343,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 if (response.hasFailures()) {
                     logger.error("failed to execute" + response.buildFailureMessage());
                 }
+                logger.info("Completed bulk {} actions in {}ms",
+                        response.getItems().length,
+                        response.getTookInMillis());
             } catch (Exception e) {
                 logger.error("failed to execute bulk", e);
             }

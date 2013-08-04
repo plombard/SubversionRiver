@@ -26,6 +26,7 @@ import org.tmatesoft.svn.core.SVNLogEntryPath;
 import org.tmatesoft.svn.core.io.SVNRepository;
 
 import java.nio.file.Paths;
+import java.util.Date;
 
 /**
  * JavaBean for handling JSON generation from SVNEntries
@@ -35,22 +36,37 @@ import java.nio.file.Paths;
 @SuppressWarnings("unused")
 public class SubversionDocument {
 
-    @Expose final String path;    // File path
-    @Expose final String name;    // File name
-    @Expose final long size;      // File size
-    @Expose final char change;    // Type of change
-    @Expose final String content; // File content
-    @Expose final long from;      // Parent revision
-    @Expose final String origin;  // Parent path
+    @Expose final String path;       // File path
+    @Expose final String name;       // File name
+    @Expose final String fullname;   // Full File name
+    @Expose final long size;         // File size
+    @Expose final char change;       // Type of change
+    @Expose final String content;    // File content
+    @Expose final long from;         // Parent revision
+    @Expose final String origin;     // Parent path
+    @Expose final String author;     // Comitter
+    @Expose final String repository; // File repository
+    @Expose final long revision;     // revision number
+    @Expose final Date date;         // Commit date
+    @Expose final String message;    // Commit message
 
     public static final String TYPE_NAME = "svndocument";
 
-    public SubversionDocument(SVNLogEntryPath entryPath, SVNRepository repository, long revision)
+    public SubversionDocument(SVNLogEntryPath entryPath,
+                              SVNRepository repository,
+                              long revisionNumber,
+                              SubversionRevision revision)
             throws SVNException {
         this.path = Paths.get(entryPath.getPath()).getParent().toString();
+        this.fullname = entryPath.getPath();
         this.change = entryPath.getType();
         this.origin = entryPath.getCopyPath();
         this.from = entryPath.getCopyRevision();
+        this.author = revision.author;
+        this.repository = revision.repository;
+        this.revision = revision.revision;
+        this.date = revision.date;
+        this.message = revision.message;
         // First check the type of the changement ofthe entry,
         // for it implies which type of info
         // we'll be able to extract.
@@ -60,7 +76,7 @@ public class SubversionDocument {
                 || change == 'M') {
             SVNDirEntry dirEntry = repository.info(
                     entryPath.getPath(),
-                    revision
+                    revisionNumber
             );
             // ...and init a SubversionDocument to add to the revision
             this.content = SubversionCrawler.getContent(dirEntry, repository);
