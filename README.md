@@ -10,7 +10,7 @@ After downloading the sources, run the task `mvn package`.
 
 Use the elasticsearch plugin manager to install the plugin :
 
-    $ /path-to/elasticsearch/bin/plugin -url file:./target/release/elasticsearch-river-subversion-0.3.3.zip -install river-subversion
+    $ /path-to/elasticsearch/bin/plugin -url https://github.com/plombard/SubversionRiver/releases/download/0.3.4/elasticsearch-river-subversion-0.3.4.zip -install river-subversion
 
 ### Creating a Subversion river ###
 Just create a new river of type "svn" and give it at least a repository and a path to index ("/" for the entire repos) :
@@ -30,13 +30,13 @@ Except "repos" and "path", there are other parameters to the creation of the riv
 
 "password", the password to use to connect to the repository (default "password")
 
-"updateRate", in ms, the time interval between every tick of the river (default 900000, so 15 mn)
+"update_rate", in ms, the time interval between every tick of the river (default 900000, so 15 mn)
 
-"typeName", if you want your subversion information to use another type or mapping (default "svn")
+"type", if you want your subversion information to use another type for the river (default "svn")
 
-"bulkSize", the size of the bulks sent to the indexer (default 200)
+"bulk_size", the size of the bulks sent to the indexer (default 200)
 
-"startRevision", in long format, the starting revision for the indexing (default "1L")
+"start_revision", in long format, the starting revision for the indexing (default "1L")
 
 
 ### Data indexed ###

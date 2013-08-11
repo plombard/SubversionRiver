@@ -18,7 +18,6 @@ package org.elasticsearch.river.subversion.mapping;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.river.subversion.bean.SubversionDocument;
-import org.elasticsearch.river.subversion.bean.SubversionRevision;
 
 import java.io.IOException;
 
@@ -36,9 +35,6 @@ public class SubversionDocumentMapping {
         if( instance == null) {
             instance = jsonBuilder().startObject()
                         .startObject(SubversionDocument.TYPE_NAME)
-                            .startObject("_parent")
-                                .field("type", SubversionRevision.TYPE_NAME)
-                            .endObject()
                             .startObject("properties")
                                 .startObject("path")
                                     .field("type", "multi_field")

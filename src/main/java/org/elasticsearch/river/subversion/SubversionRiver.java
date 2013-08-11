@@ -263,7 +263,6 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                             for (SubversionDocument svnDocument : svnRevision.getDocuments()) {
                                 bulk.add(indexRequest(indexName)
                                         .type(SubversionDocument.TYPE_NAME)
-                                        .parent(svnRevision.id())
                                         .source(svnDocument.json())
                                 );
                             }
