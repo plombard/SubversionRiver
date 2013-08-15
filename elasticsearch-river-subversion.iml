@@ -29,12 +29,12 @@
     <orderEntry type="library" name="Maven: org.apache.lucene:lucene-grouping:4.4.0" level="project" />
     <orderEntry type="library" name="Maven: org.apache.lucene:lucene-spatial:4.4.0" level="project" />
     <orderEntry type="library" name="Maven: com.spatial4j:spatial4j:0.3" level="project" />
-    <orderEntry type="library" name="Maven: org.tmatesoft.svnkit:svnkit:1.7.9" level="project" />
-    <orderEntry type="library" name="Maven: org.tmatesoft.sqljet:sqljet:1.1.7" level="project" />
+    <orderEntry type="library" name="Maven: org.tmatesoft.svnkit:svnkit:1.7.8" level="project" />
+    <orderEntry type="library" name="Maven: org.tmatesoft.sqljet:sqljet:1.1.6" level="project" />
     <orderEntry type="library" name="Maven: org.antlr:antlr-runtime:3.4" level="project" />
     <orderEntry type="library" name="Maven: de.regnis.q.sequence:sequence-library:1.0.2" level="project" />
     <orderEntry type="library" name="Maven: net.java.dev.jna:jna:3.4.0" level="project" />
-    <orderEntry type="library" name="Maven: com.trilead:trilead-ssh2:1.0.0-build216" level="project" />
+    <orderEntry type="library" name="Maven: com.trilead:trilead-ssh2:1.0.0-build215" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:14.0.1" level="project" />
     <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.2.2" level="project" />
     <orderEntry type="library" name="Maven: com.github.tlrx:elasticsearch-test:0.0.9" level="project" />
