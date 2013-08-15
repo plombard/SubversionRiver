@@ -183,7 +183,7 @@ public class SubversionRiverTest {
 
     @Test
     @ElasticsearchIndex(indexName = RIVER_KEYWORD)
-    public void test22GetMapping() {
+    public void test22GetMapping() throws IOException {
         // Wait 2s for the indexing to take place.
         try {
             sleep(4000L);
@@ -202,8 +202,9 @@ public class SubversionRiverTest {
                 +"] id ["+mdd.id()
                 +"] source ["+mdd.source()+"]"
         );
+        boolean found = mdd.source().string().contains("not_analyzed");
 
-        Assert.assertNotNull("Mapping for SubversionDocument must be set", mdd.source());
+        Assert.assertTrue("Mapping for SubversionDocument must contain not_analyzed", found);
     }
 
 }

@@ -119,8 +119,16 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 "startRevision [{}], indexing to [{}]/[{}]",
                 repos, path, updateRate, bulkSize, startRevision, indexName, typeName);
         try {
+            // Wait for the index availability
+            client.admin().cluster().prepareHealth()
+                    .setWaitForYellowStatus()
+                    .execute().actionGet();
             client.admin().indices()
                     .prepareCreate(indexName)
+                    .execute().actionGet();
+            // Wait for the index availability
+            client.admin().cluster().prepareHealth()
+                    .setWaitForYellowStatus()
                     .execute().actionGet();
             client.admin().indices()
                     .preparePutMapping(indexName)
