@@ -6,11 +6,9 @@ Subversion River plugin for [ElasticSearch](http://www.elasticsearch.org/)
 
 ### Installation ###
 
-After downloading the sources, run the task `mvn package`.
-
 Use the elasticsearch plugin manager to install the plugin :
 
-    $ /path-to/elasticsearch/bin/plugin -url https://github.com/plombard/SubversionRiver/releases/download/0.3.4/elasticsearch-river-subversion-0.3.4.zip -install river-subversion
+    $ /path-to/elasticsearch/bin/plugin --install com.github.plombard/elasticsearch-river-subversion/0.3.5
 
 ### Creating a Subversion river ###
 Just create a new river of type "svn" and give it at least a repository and a path to index ("/" for the entire repos) :
