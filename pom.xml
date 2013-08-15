@@ -20,7 +20,7 @@
     <scm>
         <connection>scm:git:git@github.com:plombard/SubversionRiver.git</connection>
         <developerConnection>scm:git:git@github.com:plombard/SubversionRiver.git</developerConnection>
-        <url>git@github.com:plombard/SubversionRiver.git</url>
+        <url>https://github.com/plombard/SubversionRiver.git</url>
     </scm>
     <developers>
         <developer>
