@@ -398,11 +398,14 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
      */
     private UpdatePolicy getUpdatePolicy(Long lastRevision, Integer bulkSize) {
         // If repository has not been indexed yet
+        // Or if the last indexed revision is inferior
+        // to the one in the settings
         // we start from the revision specified
         // in the settings. (default is revision 1)
         UpdatePolicy result = new UpdatePolicy();
 
-        if( indexedRevision == NOT_INDEXED_REVISION) {
+        if( indexedRevision == NOT_INDEXED_REVISION
+                || indexedRevision < startRevision ) {
             result.incremental = false;
             if( startRevision == INDEX_HEAD_REVISION) {
                 result.fromRevision = lastRevision;
