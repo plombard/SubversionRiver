@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.elasticsearch.river.subversion.bean;
+package org.elasticsearch.river.subversion.type;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;

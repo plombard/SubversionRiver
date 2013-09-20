@@ -4,8 +4,8 @@ import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import org.elasticsearch.river.subversion.bean.SubversionDocument;
-import org.elasticsearch.river.subversion.bean.SubversionRevision;
+import org.elasticsearch.river.subversion.type.SubversionDocument;
+import org.elasticsearch.river.subversion.type.SubversionRevision;
 import org.junit.Before;
 import org.junit.Test;
 

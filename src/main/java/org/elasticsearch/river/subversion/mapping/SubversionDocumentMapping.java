@@ -17,7 +17,7 @@
 package org.elasticsearch.river.subversion.mapping;
 
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.river.subversion.bean.SubversionDocument;
+import org.elasticsearch.river.subversion.type.SubversionDocument;
 
 import java.io.IOException;
 

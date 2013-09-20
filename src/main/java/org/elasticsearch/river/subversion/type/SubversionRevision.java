@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.elasticsearch.river.subversion.bean;
+package org.elasticsearch.river.subversion.type;
 
 import com.google.common.collect.Lists;
 import com.google.common.hash.HashFunction;

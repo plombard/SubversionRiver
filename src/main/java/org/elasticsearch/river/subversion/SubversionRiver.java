@@ -29,17 +29,19 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.block.ClusterBlockException;
 import org.elasticsearch.common.inject.Inject;
 import org.elasticsearch.common.util.concurrent.EsExecutors;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.support.XContentMapValues;
+import org.elasticsearch.index.get.GetField;
 import org.elasticsearch.indices.IndexAlreadyExistsException;
 import org.elasticsearch.river.AbstractRiverComponent;
 import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
-import org.elasticsearch.river.subversion.bean.SubversionDocument;
-import org.elasticsearch.river.subversion.bean.SubversionRevision;
 import org.elasticsearch.river.subversion.mapping.IndexedRevisionMapping;
 import org.elasticsearch.river.subversion.mapping.SubversionDocumentMapping;
 import org.elasticsearch.river.subversion.mapping.SubversionRevisionMapping;
+import org.elasticsearch.river.subversion.type.SubversionDocument;
+import org.elasticsearch.river.subversion.type.SubversionRevision;
 import org.elasticsearch.threadpool.ThreadPool;
 
 import java.io.IOException;
@@ -96,7 +98,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             password = XContentMapValues.nodeStringValue(subversionSettings.get("password"), "password");
             path = XContentMapValues.nodeStringValue(subversionSettings.get("path"), "/");
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
-            indexName = riverName.name();
+            indexName = XContentMapValues.nodeStringValue(subversionSettings.get("index"), riverName.name());
             typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
             bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
             startRevision = XContentMapValues.nodeLongValue(subversionSettings.get("start_revision"), 1L);
@@ -119,32 +121,29 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 "startRevision [{}], indexing to [{}]/[{}]",
                 repos, path, updateRate, bulkSize, startRevision, indexName, typeName);
         try {
-            // Wait for the index availability
+            // Wait for the cluster availability
             client.admin().cluster().prepareHealth()
                     .setWaitForYellowStatus()
                     .execute().actionGet();
-            client.admin().indices()
-                    .prepareCreate(indexName)
+            // Checks if the index has already been created
+            IndicesExistsResponse existResponse = client.admin().indices()
+                    .prepareExists(indexName)
                     .execute().actionGet();
-            // Wait for the index availability
-            client.admin().cluster().prepareHealth()
-                    .setWaitForYellowStatus()
-                    .execute().actionGet();
-            client.admin().indices()
-                    .preparePutMapping(indexName)
-                    .setType(SubversionRevision.TYPE_NAME)
-                    .setSource(SubversionRevisionMapping.getInstance())
-                    .execute().actionGet();
-            client.admin().indices()
-                    .preparePutMapping(indexName)
-                    .setType(SubversionDocument.TYPE_NAME)
-                    .setSource(SubversionDocumentMapping.getInstance())
-                    .execute().actionGet();
-            client.admin().indices()
-                    .preparePutMapping(indexName)
-                    .setType("indexed_revision")
-                    .setSource(IndexedRevisionMapping.getInstance())
-                    .execute().actionGet();
+            if(!existResponse.isExists()) {
+                logger.info("Subversion River: Index [{}] does not exists, creating...",
+                        indexName);
+                client.admin().indices()
+                        .prepareCreate(indexName)
+                        .execute().actionGet();
+                // Wait for the cluster availability
+                client.admin().cluster().prepareHealth()
+                        .setWaitForYellowStatus()
+                        .execute().actionGet();
+            }
+            // Create Mappings if needed
+            CreateMapping(SubversionRevision.TYPE_NAME, SubversionRevisionMapping.getInstance());
+            CreateMapping(SubversionDocument.TYPE_NAME, SubversionDocumentMapping.getInstance());
+            CreateMapping("indexed_revision", IndexedRevisionMapping.getInstance());
         } catch (Exception e) {
             Throwable cause = ExceptionsHelper.unwrapCause(e);
             if (!(cause instanceof IndexAlreadyExistsException) && !(cause instanceof ClusterBlockException)) {
@@ -156,6 +155,27 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         indexerThread = EsExecutors.daemonThreadFactory(settings.globalSettings(), "subversion_river_indexer")
                 .newThread(new Indexer());
         indexerThread.start();
+    }
+
+    /**
+     * Create mapping for specified type if it does not exists.
+     * @param type elasticsearch type name
+     * @param mapping elasticsearch mapping instance
+     * @throws IOException
+     */
+    private void CreateMapping(String type, XContentBuilder mapping) throws IOException {
+        GetResponse getResponse = client.prepareGet(indexName, type, "_mapping")
+                .execute()
+                .actionGet();
+        if( !getResponse.isExists() ) {
+            logger.info("Subversion River: Mapping for type [{}] does not exists, creating...",
+                    type);
+            client.admin().indices()
+                    .preparePutMapping(indexName)
+                    .setType(type)
+                    .setSource(mapping)
+                    .execute().actionGet();
+        }
     }
 
     @Override
@@ -193,24 +213,21 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
         // Attempt to get the last indexed revision with a GET.
         // A NullPointerException basically means that there is no indexed_revision.
-        try {
-            GetResponse response = client.prepareGet(indexName, "indexed_revision", indexedRevisionID)
-                    .setFields("revision")
-                    .execute()
-                    .actionGet();
-            logger.debug("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
-                    indexName, "indexed_revision", indexedRevisionID, response.getFields());
+        GetResponse response = client.prepareGet(indexName, "indexed_revision", indexedRevisionID)
+                .setFields("revision")
+                .execute()
+                .actionGet();
+        logger.debug("Get Indexed Revision Index [{}] Type [{}] Id [{}] Fields [{}]",
+                indexName, "indexed_revision", indexedRevisionID, response.getFields());
 
-            if(response.getField("revision") == null
-                    || !response.isExists()) {
-                return NOT_INDEXED_REVISION;
-            } else {
-                return (Long) response.getField("revision").getValue();
-            }
-        } catch( NullPointerException ex) {
-            logger.info("Exception encountered while GETting indexed_revision on [{}] (does not exist ?) :",
-                    indexName, ex);
+        Optional<GetField> indexedRevisionField = Optional.fromNullable(response.getField("revision"));
+        if( !indexedRevisionField.isPresent()
+                || !response.isExists()) {
+            logger.info("Problem encountered while GETting indexed_revision on [{}] (does not exist ?).",
+                    indexName);
             return NOT_INDEXED_REVISION;
+        } else {
+            return (Long) indexedRevisionField.get().getValue();
         }
     }
 
@@ -332,10 +349,13 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         .source(
                                 jsonBuilder()
                                         .startObject()
-                                        .field("revision", indexedRevision)
+                                            .field("repos", repos)
+                                            .field("revision", indexedRevision)
                                         .endObject()
                         )
                 );
+                logger.info("Updating indexed_revision on index [{}] with id [{}] and value {[{}]:[{}]}",
+                        indexName, indexedRevisionID, repos, indexedRevision);
             } catch (IOException e) {
                 logger.error("failed to update indexed_revision [{}] on index [{}]" +
                         " because of Exception {}, aborting bulk operation",

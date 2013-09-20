@@ -18,7 +18,7 @@ import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
-import org.elasticsearch.river.subversion.bean.SubversionDocument;
+import org.elasticsearch.river.subversion.type.SubversionDocument;
 import org.elasticsearch.search.SearchHit;
 import org.junit.Assert;
 import org.junit.Before;

@@ -21,8 +21,8 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
-import org.elasticsearch.river.subversion.bean.SubversionDocument;
-import org.elasticsearch.river.subversion.bean.SubversionRevision;
+import org.elasticsearch.river.subversion.type.SubversionDocument;
+import org.elasticsearch.river.subversion.type.SubversionRevision;
 import org.tmatesoft.svn.core.*;
 import org.tmatesoft.svn.core.auth.ISVNAuthenticationManager;
 import org.tmatesoft.svn.core.internal.io.dav.DAVRepositoryFactory;
@@ -107,7 +107,7 @@ public class SubversionCrawler {
             throws SVNException, URISyntaxException {
         List<SubversionRevision> result = Lists.newArrayList();
         // Init the first revision to get
-        Long start = startOp.isPresent() ? startOp.get() : 1;
+        Long start = startOp.isPresent() ? startOp.get() : 1L;
         // Init the last revision to get
         // (but first, init the repos)
         SVNURL svnUrl;

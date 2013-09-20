@@ -35,6 +35,10 @@ public class IndexedRevisionMapping {
         if( instance == null) {
             instance = jsonBuilder().startObject().startObject("indexed_revision")
                     .startObject("properties")
+                            .startObject("repos")
+                                .field("type", "string")
+                                .field("index", "not_analyzed")
+                            .endObject()
                         .startObject("revision")
                             .field("type", "long")
                             .field("index", "analyzed")
