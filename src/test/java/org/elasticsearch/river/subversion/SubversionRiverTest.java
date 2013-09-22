@@ -52,6 +52,8 @@ public class SubversionRiverTest {
     private static final String PATH = "/";
     private static final Long START_REVISION = 4L;
     private static final String RIVER_KEYWORD = "_river";
+    private static final int UPDATE_RATE = 100;
+    private static final int BULK_SIZE = 10;
     private static String INDEXED_REVISION_ID;
 
     @SuppressWarnings("ConstantConditions")
@@ -88,6 +90,8 @@ public class SubversionRiverTest {
         Map<String, Object> json = new HashMap<String, Object>();
         json.put("repos",REPOS);
         json.put("path",PATH);
+        json.put("update_rate",UPDATE_RATE);
+        json.put("bulk_size",BULK_SIZE);
         json.put("start_revision",START_REVISION);
 
         XContentBuilder builder = jsonBuilder()
