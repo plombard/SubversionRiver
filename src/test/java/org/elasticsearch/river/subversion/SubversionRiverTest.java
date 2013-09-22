@@ -52,8 +52,8 @@ public class SubversionRiverTest {
     private static final String PATH = "/";
     private static final Long START_REVISION = 4L;
     private static final String RIVER_KEYWORD = "_river";
-    private static final int UPDATE_RATE = 100;
-    private static final int BULK_SIZE = 10;
+    private static final int UPDATE_RATE = 1000;
+    private static final int BULK_SIZE = 2;
     private static String INDEXED_REVISION_ID;
 
     @SuppressWarnings("ConstantConditions")

@@ -318,13 +318,6 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         logger.debug("Indexing repository {}/{} from revision [{}] to [{}] incremental [{}]",
                                 reposAsURL, path, updatePolicy.fromRevision, updatePolicy.toRevision, updatePolicy.incremental);
 
-                        // Optimistic update to the last revision indexed
-                        // At this point, either the retrieving from the repository
-                        // will fail, and the indexed revision will be reset
-                        // from the index on the next pass,
-                        // Or... all will go well (finger-crossed).
-                        indexedRevision = updatePolicy.toRevision;
-
                         // Retrieve the revisions from the repository
                         List<SubversionRevision> subversionRevisionsBulk =
                                 SubversionCrawler.getRevisions(
@@ -343,6 +336,8 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                                     .id(svnRevision.id())
                                     .source(svnRevision.json())
                             );
+                            // ... then update the indexed revision global
+                            indexedRevision = svnRevision.getRevision();
                             // ... and then the documents/files
                             for (SubversionDocument svnDocument : svnRevision.getDocuments()) {
                                 bulkProcessor.add(indexRequest(indexName)

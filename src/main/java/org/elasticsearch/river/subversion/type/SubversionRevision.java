@@ -79,6 +79,15 @@ public class SubversionRevision {
     }
 
     /**
+     *  Getter for the indexed revision update
+     * @return  the revision number
+     */
+
+    public long getRevision() {
+        return revision;
+    }
+
+    /**
      * Repository@revision should be sufficient to uniquely identify a revision
      * @return  a loosely constructed hashcode converted to String
      */
