@@ -25,7 +25,6 @@ import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.SVNLogEntryPath;
 import org.tmatesoft.svn.core.io.SVNRepository;
 
-import java.nio.file.Paths;
 import java.util.Date;
 
 /**
@@ -57,7 +56,7 @@ public class SubversionDocument {
                               long revisionNumber,
                               SubversionRevision revision)
             throws SVNException {
-        this.path = Paths.get(entryPath.getPath()).getParent().toString();
+        this.path = entryPath.getPath().substring(0, entryPath.getPath().lastIndexOf("/"));
         this.fullname = entryPath.getPath();
         this.change = entryPath.getType();
         this.origin = entryPath.getCopyPath();
@@ -87,10 +86,7 @@ public class SubversionDocument {
             // So we can't getDir() on it,
             // and the content, size, etc are irrelevant.
             this.content = null;
-            this.name = Paths.get(
-                    entryPath.getPath())
-                    .getFileName()
-                    .toString();
+            this.name = entryPath.getPath().substring(entryPath.getPath().lastIndexOf("/"));
             this.size = 0;
         }
     }
