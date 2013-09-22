@@ -36,6 +36,10 @@ Except "repos" and "path", there are other parameters to the creation of the riv
 
 "start_revision", in long format, the starting revision for the indexing (default "1L")
 
+"index", the name or alias of the index to store the documents (defaut to the river name)
+
+"bulk_concurrent_requests", the maximum number of concurrent indexing processes (default 1, largely untested, use at your own risk)
+
 
 ### Data indexed ###
 For the moment the river indexes only a few metadatas from svn, mainly the file content (I wrote it for full-text searches) :

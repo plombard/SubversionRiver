@@ -114,30 +114,32 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                 new BulkProcessor.Listener() {
                     @Override
                     public void beforeBulk(long executionId, BulkRequest bulkRequest) {
-                        // Add the last revision number to index to the bulk
-                        // So it can be retrieved from the ElasticSearch index.
-                        try {
-                            bulkRequest.add(indexRequest(indexName)
-                                    .type("indexed_revision")
-                                    .id(indexedRevisionID)
-                                    .source(
-                                            jsonBuilder()
-                                                    .startObject()
+                        if(bulkRequest.numberOfActions() > 0) {
+                            // Add the last revision number to index to the bulk
+                            // So it can be retrieved from the ElasticSearch index.
+                            try {
+                                bulkRequest.add(indexRequest(indexName)
+                                        .type("indexed_revision")
+                                        .id(indexedRevisionID)
+                                        .source(
+                                                jsonBuilder()
+                                                        .startObject()
                                                         .field("repos", repos)
                                                         .field("revision", indexedRevision)
-                                                    .endObject()
-                                    )
-                            );
-                            logger.info("Updating indexed_revision on index [{}] with id [{}] and value {repos:[{}],revision:[{}]}",
-                                indexName, indexedRevisionID, repos, indexedRevision);
-                        } catch (IOException ioe) {
-                            logger.error("failed to update indexed_revision [{}] on index [{}]" +
-                                    " because of Exception {}, it will be set with the next bulk operation",
-                                    indexedRevision, indexName, ioe
-                            );
+                                                        .endObject()
+                                        )
+                                );
+                                logger.info("Updating indexed_revision on index [{}] with id [{}] and value {repos:[{}],revision:[{}]}",
+                                    indexName, indexedRevisionID, repos, indexedRevision);
+                            } catch (IOException ioe) {
+                                logger.error("failed to update indexed_revision [{}] on index [{}]" +
+                                        " because of Exception {}, it will be set with the next bulk operation",
+                                        indexedRevision, indexName, ioe
+                                );
+                            }
+                            logger.info("Indexed revision of repository : {}{} --> [{}]", repos, path, indexedRevision);
+                            logger.info("Execute bulk {} actions", bulkRequest.numberOfActions());
                         }
-                        logger.info("Indexed revision of repository : {}{} --> [{}]", repos, path, indexedRevision);
-                        logger.info("Execute bulk {} actions", bulkRequest.numberOfActions());
 
                     }
 
