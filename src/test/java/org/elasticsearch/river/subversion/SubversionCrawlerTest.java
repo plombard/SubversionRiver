@@ -1,7 +1,7 @@
 package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Optional;
-import org.elasticsearch.river.subversion.type.SubversionDocument;
+import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.elasticsearch.river.subversion.type.SubversionRevision;
 import org.junit.Assert;
 import org.junit.Before;
@@ -19,8 +19,8 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 
-import static org.elasticsearch.river.subversion.SubversionCrawler.getContent;
-import static org.elasticsearch.river.subversion.SubversionCrawler.getRevisions;
+import static org.elasticsearch.river.subversion.crawler.SubversionCrawler.getContent;
+import static org.elasticsearch.river.subversion.crawler.SubversionCrawler.getRevisions;
 
 
 /**
@@ -49,9 +49,6 @@ public class SubversionCrawlerTest {
                 Optional.<Long>absent(),
                 Optional.<Long>absent()
         );
-        for( SubversionRevision revision : result ) {
-            System.out.println(revision.json());
-        }
 
         Assert.assertTrue("This repository has normally 7 revisions",result.size() == 7);
     }
@@ -66,12 +63,6 @@ public class SubversionCrawlerTest {
                 Optional.<Long>absent(),
                 Optional.<Long>absent()
         );
-        for( SubversionRevision revision : result ) {
-            System.out.println(revision.json());
-            for( SubversionDocument document : revision.getDocuments() ) {
-                System.out.println(document.json());
-            }
-        }
 
         Assert.assertTrue("This repository has normally 5 revisions",result.size() == 5);
     }
@@ -85,15 +76,36 @@ public class SubversionCrawlerTest {
         );
         SVNDirEntry entry = repository.info("module1/trunk/watchlist.txt", 7L);
         String result = getContent(entry, repository);
+
         Assert.assertNotNull("This file cannot be empty/null", result);
     }
 
     @Test
-    public void testGetLatestRevision() throws SVNException, URISyntaxException {
-        long revision = SubversionCrawler.getLatestRevision(reposAsURL, "", "",path);
+    public void testGetRevisionsFileNotFound() throws URISyntaxException {
+        String errorMessage = "";
 
-        System.out.println("Latest revision of "+ reposAsURL +"/"+path+" == "+revision);
-        Assert.assertTrue(revision > 0);
+        try {
+            getRevisions(
+                    reposAsURL,
+                    "",
+                    "",
+                    "/module2/trunk/",
+                    Optional.<Long>absent(),
+                    Optional.of(1L)
+            );
+        } catch (SVNException e) {
+            errorMessage = e.getMessage();
+        }
+
+        // "E160013" is svnkit error code for file not found
+        Assert.assertTrue(errorMessage.contains("E160013"));
+    }
+
+    @Test
+    public void testGetLatestRevision() throws SVNException, URISyntaxException {
+        long revision = SubversionCrawler.getLatestRevision(reposAsURL, "", "", path);
+
+        Assert.assertTrue(revision == 7L);
     }
 
 }
