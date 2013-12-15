@@ -63,8 +63,8 @@ public class SubversionRiverTest {
         INDEXED_REVISION_ID =
                 "_indexed_revision_".concat(
                         hf.newHasher()
-                                .putString(REPOS)
-                                .putString(PATH)
+                                .putUnencodedChars(REPOS)
+                                .putUnencodedChars(PATH)
                                 .hash()
                                 .toString()
                 );
@@ -178,7 +178,7 @@ public class SubversionRiverTest {
                 +"] value ["+result+"]");
 
         Assert.assertTrue("Indexed Revision must be a number > 0",
-                result > 0);
+                result > 0L);
     }
 
     @Test

@@ -84,7 +84,7 @@ public class SubversionRevision {
      */
     public String id() {
         return hf.newHasher()
-                .putString(repository)
+                .putUnencodedChars(repository)
                 .putLong(revision)
                 .hash()
                 .toString();
