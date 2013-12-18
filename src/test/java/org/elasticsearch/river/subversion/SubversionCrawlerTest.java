@@ -3,7 +3,6 @@ package org.elasticsearch.river.subversion;
 import com.google.common.collect.Sets;
 import org.elasticsearch.river.subversion.crawler.Parameters;
 import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
-import org.elasticsearch.river.subversion.type.SubversionDocument;
 import org.elasticsearch.river.subversion.type.SubversionRevision;
 import org.junit.Assert;
 import org.junit.Before;
@@ -136,9 +135,7 @@ public class SubversionCrawlerTest {
         );
         int count = 0;
         for(SubversionRevision svnRevision:result) {
-            for(SubversionDocument svnDocument:svnRevision.getDocuments()) {
-                count++;
-            }
+            count += svnRevision.getDocuments().size();
         }
         Assert.assertTrue("We should get 7 documents after filter",count == 7);
     }

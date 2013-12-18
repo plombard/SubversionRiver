@@ -45,8 +45,8 @@ public class SubversionRevision {
     public static final String TYPE_NAME = "svnrevision";
 
     private static transient final HashFunction hf = Hashing.md5();
-    // TODO : find a workaround with joda-time
-    public static final String DATE_TIME_ISO8601_FORMAT = "yyyy-MM-dd'T'hh:mm:ss.SSSZ";
+    // TODO : find a (better) workaround with joda-time
+    public static final String DATE_TIME_ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
 
     public SubversionRevision(SVNLogEntry logEntry, String repository) {
         this.author = logEntry.getAuthor();

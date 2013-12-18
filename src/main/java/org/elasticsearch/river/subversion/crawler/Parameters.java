@@ -37,6 +37,7 @@ public class Parameters {
     private Optional<Long> endRevision;
     private final Optional<Long> maximumFileSize;
     private final ImmutableSet<Pattern> patternsToFilter;
+    private final Optional<Boolean> storeDiffs;
 
     public Parameters(final Optional<String> login,
                       final Optional<String> password,
@@ -44,7 +45,8 @@ public class Parameters {
                       final Optional<Long> startRevision,
                       final Optional<Long> endRevision,
                       final Optional<Long> maximumFileSize,
-                      final ImmutableSet<Pattern> patternsToFilter) {
+                      final ImmutableSet<Pattern> patternsToFilter,
+                      final Optional<Boolean> storeDiffs) {
         this.login = login;
         this.password = password;
         this.path = path;
@@ -52,6 +54,7 @@ public class Parameters {
         this.endRevision = endRevision;
         this.maximumFileSize = maximumFileSize;
         this.patternsToFilter = patternsToFilter;
+        this.storeDiffs = storeDiffs;
     }
 
     @Override
@@ -63,6 +66,7 @@ public class Parameters {
             .add("endRevision", endRevision)
             .add("maximumFileSize", maximumFileSize)
             .add("patternsToFilter", Iterables.toString(patternsToFilter))
+            .add("storeDiffs", storeDiffs)
             .toString();
     }
 
@@ -94,6 +98,10 @@ public class Parameters {
         return patternsToFilter;
     }
 
+    public Optional<Boolean> getStoreDiffs() {
+        return storeDiffs;
+    }
+
     public void setStartRevision(Optional<Long> startRevision) {
         this.startRevision = startRevision;
     }
@@ -114,6 +122,7 @@ public class Parameters {
         private Optional<Long> nestedEndRevision = Optional.absent();
         private Optional<Long> nestedMaximumFileSize = Optional.absent();
         private ImmutableSet<Pattern> nestedPatternsToFilter = ImmutableSet.of();
+        private Optional<Boolean> nestedStoreDiffs = Optional.of(false);
 
         public ParametersBuilder setLogin(final String newLogin) {
             this.nestedLogin = Optional.fromNullable(newLogin).or(nestedLogin);
@@ -131,17 +140,23 @@ public class Parameters {
         }
         
         public ParametersBuilder setStartRevision(final Long newStartRevision) {
-            this.nestedStartRevision = Optional.fromNullable(newStartRevision).or(nestedStartRevision);
+            if( 1L != newStartRevision ) {
+                this.nestedStartRevision = Optional.fromNullable(newStartRevision).or(nestedStartRevision);
+            }
             return this;
         }
 
         public ParametersBuilder setEndRevision(final Long newEndRevision) {
-            this.nestedEndRevision = Optional.fromNullable(newEndRevision).or(nestedEndRevision);
+            if( 0L != newEndRevision ) {
+                this.nestedEndRevision = Optional.fromNullable(newEndRevision).or(nestedEndRevision);
+            }
             return this;
         }
 
         public ParametersBuilder setMaximumFileSize(final Long newMaximumFileSize) {
-            this.nestedMaximumFileSize = Optional.fromNullable(newMaximumFileSize).or(nestedMaximumFileSize);
+            if(0L != newMaximumFileSize) {
+                this.nestedMaximumFileSize = Optional.fromNullable(newMaximumFileSize).or(nestedMaximumFileSize);
+            }
             return this;
         }
 
@@ -150,14 +165,20 @@ public class Parameters {
             return this;
         }
 
+        public ParametersBuilder setStoreDiffs(final Boolean newStoreDiffs) {
+            this.nestedStoreDiffs = Optional.fromNullable(newStoreDiffs).or(nestedStoreDiffs);
+            return this;
+        }
+
         public Parameters create() {
             return new Parameters(nestedLogin,
-                    nestedPassword,
-                    nestedPath,
-                    nestedStartRevision,
-                    nestedEndRevision,
-                    nestedMaximumFileSize,
-                    nestedPatternsToFilter);
+                nestedPassword,
+                nestedPath,
+                nestedStartRevision,
+                nestedEndRevision,
+                nestedMaximumFileSize,
+                nestedPatternsToFilter,
+                nestedStoreDiffs);
         }
     }
 }

@@ -33,6 +33,7 @@ public class ParametersTest {
         Assert.assertFalse(parameters.getEndRevision().isPresent());
         Assert.assertFalse(parameters.getMaximumFileSize().isPresent());
         Assert.assertEquals(parameters.getPatternsToFilter(), ImmutableSet.<Pattern>of());
+        Assert.assertNotNull(parameters.getStoreDiffs().orNull());
     }
 
     @Test
@@ -45,5 +46,6 @@ public class ParametersTest {
         Assert.assertFalse(parameters.getEndRevision().isPresent());
         Assert.assertFalse(parameters.getMaximumFileSize().isPresent());
         Assert.assertEquals(parameters.getPatternsToFilter(), ImmutableSet.<Pattern>of());
+        Assert.assertFalse(parameters.getStoreDiffs().get());
     }
 }

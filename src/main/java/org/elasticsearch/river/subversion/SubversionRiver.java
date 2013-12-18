@@ -95,19 +95,32 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             // Crawler settings
             repos = XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null);
             crawlerParameters = new Parameters.ParametersBuilder()
-                    .setLogin((String) subversionSettings.get("login"))
-                    .setPassword((String) subversionSettings.get("password"))
-                    .setPath((String) subversionSettings.get("path"))
-                    //.setStartRevision((Long) subversionSettings.get("start_revision"))
-                    //.setMaximumFileSize((Long) subversionSettings.get("maximum_file_size"))
-                    //.setPatternsToFilter((Set<Pattern>) subversionSettings.get("patterns_to_filter"))
+                .setLogin(XContentMapValues.nodeStringValue(
+                    subversionSettings.get("login"), null))
+                .setPassword(XContentMapValues.nodeStringValue(
+                    subversionSettings.get("password"), null))
+                .setPath(XContentMapValues.nodeStringValue(
+                    subversionSettings.get("path"), null))
+                // Really NOT happy AT ALL to have to define default values
+                // both here *and* in the Parameters class
+                // because of an implicit cast to integer
+                // in settings.
+                .setStartRevision(XContentMapValues.nodeLongValue(
+                    subversionSettings.get("start_revision"), 1L))
+                .setEndRevision(XContentMapValues.nodeLongValue(
+                    subversionSettings.get("end_revision"), 0L))
+                .setMaximumFileSize(XContentMapValues.nodeLongValue(
+                        subversionSettings.get("maximum_file_size"), 0L))
+                //.setPatternsToFilter((Set<Pattern>) subversionSettings.get("patterns_to_filter"))
+                .setStoreDiffs(XContentMapValues.nodeBooleanValue(
+                    subversionSettings.get("store_diffs"), false))
             .create();
+            logger.info("Init Subversion river, crawler parameters [{}]", crawlerParameters);
             // River settings
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
             indexName = XContentMapValues.nodeStringValue(subversionSettings.get("index"), riverName.name());
             typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
             bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
-
         }
 
         indexedRevisionID ="_indexed_revision_".concat(

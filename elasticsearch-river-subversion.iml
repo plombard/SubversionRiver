@@ -37,7 +37,7 @@
     <orderEntry type="library" name="Maven: com.trilead:trilead-ssh2:1.0.0-build215" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:15.0" level="project" />
     <orderEntry type="library" name="Maven: com.google.code.gson:gson:2.2.2" level="project" />
-    <orderEntry type="library" name="Maven: com.github.tlrx:elasticsearch-test:0.0.9" level="project" />
+    <orderEntry type="library" name="Maven: com.github.tlrx:elasticsearch-test:0.90.6" level="project" />
   </component>
 </module>
 
