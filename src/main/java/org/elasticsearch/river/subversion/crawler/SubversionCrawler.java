@@ -68,7 +68,8 @@ public class SubversionCrawler {
      * @return latest revision
      * @throws SVNException
      */
-    public static long getLatestRevision(URL reposAsURL, Parameters parameters) throws SVNException, URISyntaxException {
+    public static long getLatestRevision(URL reposAsURL, Parameters parameters)
+            throws SVNException, URISyntaxException {
         SVNURL svnUrl;
         SVNRepository repository;
         if(reposAsURL.getProtocol().equalsIgnoreCase("file")) {
@@ -126,10 +127,13 @@ public class SubversionCrawler {
                     false
             );
             repository = SVNRepositoryFactory.create(svnUrl);
-            ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager(login, password);
+            ISVNAuthenticationManager authManager = SVNWCUtil
+                    .createDefaultAuthenticationManager(login, password);
             repository.setAuthenticationManager( authManager );
         }
-        Long end = parameters.getEndRevision().isPresent() ? parameters.getEndRevision().get() : repository.getLatestRevision();
+        Long end = parameters.getEndRevision().isPresent() ?
+                parameters.getEndRevision().get() // end crawl at end revision...
+                : repository.getLatestRevision(); // ... or at last revision if absent
         logger.info("Retrieving revisions of {}{} from [{}] to [{}]",
                 reposAsURL, path, start, end);
 
@@ -189,7 +193,11 @@ public class SubversionCrawler {
      * @return whether or not the entry is to be filtered out
      * @throws SVNException
      */
-    private static boolean checkLogEntryPath(Parameters parameters, SVNRepository repository, Long revision, SVNLogEntryPath svnLogEntryPath) throws SVNException {
+    private static boolean checkLogEntryPath(Parameters parameters,
+                                             SVNRepository repository,
+                                             Long revision,
+                                             SVNLogEntryPath svnLogEntryPath)
+            throws SVNException {
         boolean toFilter = false;
         // Check the patterns
         for(Pattern pattern:parameters.getPatternsToFilter()) {
@@ -237,7 +245,10 @@ public class SubversionCrawler {
         }
 
         // A terrible way to find the entry path relative to the repository root
-        String path = entry.getURL().toString().replaceFirst(entry.getRepositoryRoot().toString(), "");
+        String path = entry.getURL().toString().replaceFirst(
+                entry.getRepositoryRoot().toString(),
+                "");
+
         SVNProperties fileProperties = new SVNProperties();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 

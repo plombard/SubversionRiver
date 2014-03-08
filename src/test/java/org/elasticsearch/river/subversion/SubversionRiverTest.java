@@ -196,7 +196,7 @@ public class SubversionRiverTest {
         }
 
         ClusterState cs = client1.admin().cluster().prepareState()
-                .setFilterIndices("mysvnriver")
+                .setIndices("mysvnriver")
                 .execute().actionGet().getState();
         IndexMetaData imd = cs.getMetaData().index("mysvnriver");
         MappingMetaData mdd = imd.mapping(SubversionDocument.TYPE_NAME);
