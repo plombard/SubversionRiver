@@ -19,7 +19,7 @@ package org.elasticsearch.river.subversion.type;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
-import org.elasticsearch.river.subversion.SubversionCrawler;
+import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.tmatesoft.svn.core.SVNDirEntry;
 import org.tmatesoft.svn.core.SVNException;
 import org.tmatesoft.svn.core.SVNLogEntryPath;

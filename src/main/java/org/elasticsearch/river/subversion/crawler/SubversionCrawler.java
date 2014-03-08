@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.elasticsearch.river.subversion;
+package org.elasticsearch.river.subversion.crawler;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Optional;

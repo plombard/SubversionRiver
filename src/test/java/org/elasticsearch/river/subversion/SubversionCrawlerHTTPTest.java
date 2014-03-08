@@ -1,5 +1,6 @@
 package org.elasticsearch.river.subversion;
 
+import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,7 +32,7 @@ public class SubversionCrawlerHTTPTest {
 
     @Test
     public void testGetLatestRevision() throws SVNException, URISyntaxException {
-        long revision = SubversionCrawler.getLatestRevision(reposAsURL, login, password,path);
+        long revision = SubversionCrawler.getLatestRevision(reposAsURL, login, password, path);
 
         System.out.println("Latest revision of "+ reposAsURL +path+" == "+revision);
         Assert.assertTrue(revision > 0);

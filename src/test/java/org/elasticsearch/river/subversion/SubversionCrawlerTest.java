@@ -1,6 +1,7 @@
 package org.elasticsearch.river.subversion;
 
 import com.google.common.base.Optional;
+import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.elasticsearch.river.subversion.type.SubversionDocument;
 import org.elasticsearch.river.subversion.type.SubversionRevision;
 import org.junit.Assert;
@@ -19,8 +20,8 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
 
-import static org.elasticsearch.river.subversion.SubversionCrawler.getContent;
-import static org.elasticsearch.river.subversion.SubversionCrawler.getRevisions;
+import static org.elasticsearch.river.subversion.crawler.SubversionCrawler.getContent;
+import static org.elasticsearch.river.subversion.crawler.SubversionCrawler.getRevisions;
 
 
 /**
@@ -90,7 +91,7 @@ public class SubversionCrawlerTest {
 
     @Test
     public void testGetLatestRevision() throws SVNException, URISyntaxException {
-        long revision = SubversionCrawler.getLatestRevision(reposAsURL, "", "",path);
+        long revision = SubversionCrawler.getLatestRevision(reposAsURL, "", "", path);
 
         System.out.println("Latest revision of "+ reposAsURL +"/"+path+" == "+revision);
         Assert.assertTrue(revision > 0);

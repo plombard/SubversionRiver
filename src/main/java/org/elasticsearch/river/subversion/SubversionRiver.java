@@ -37,6 +37,7 @@ import org.elasticsearch.river.AbstractRiverComponent;
 import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
+import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.elasticsearch.river.subversion.mapping.IndexedRevisionMapping;
 import org.elasticsearch.river.subversion.mapping.SubversionDocumentMapping;
 import org.elasticsearch.river.subversion.mapping.SubversionRevisionMapping;
