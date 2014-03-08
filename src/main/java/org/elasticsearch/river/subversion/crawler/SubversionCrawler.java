@@ -17,7 +17,6 @@
 package org.elasticsearch.river.subversion.crawler;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import org.elasticsearch.common.logging.ESLogger;
 import org.elasticsearch.common.logging.Loggers;
@@ -41,6 +40,8 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Container for SVN repository browsing
@@ -63,13 +64,12 @@ public class SubversionCrawler {
      * Return the latest revision of a SVN directory
      *
      * @param reposAsURL URL to the repository
-     * @param login login to the repository
-     * @param password password to the repository
-     * @param path  path to the directory
+     * @param parameters (login, password, path)
      * @return latest revision
      * @throws SVNException
      */
-    public static long getLatestRevision(URL reposAsURL, String login, String password, String path) throws SVNException, URISyntaxException {
+    public static long getLatestRevision(URL reposAsURL, Parameters parameters)
+            throws SVNException, URISyntaxException {
         SVNURL svnUrl;
         SVNRepository repository;
         if(reposAsURL.getProtocol().equalsIgnoreCase("file")) {
@@ -85,7 +85,10 @@ public class SubversionCrawler {
                     false
             );
             repository = SVNRepositoryFactory.create(svnUrl);
-            ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager(login, password);
+            ISVNAuthenticationManager authManager =
+                    SVNWCUtil.createDefaultAuthenticationManager(
+                            parameters.getLogin().get(),
+                            parameters.getPassword().get());
             repository.setAuthenticationManager( authManager );
         }
 
@@ -95,19 +98,18 @@ public class SubversionCrawler {
 
         // call getDir() at HEAD revision,
         // no commit messages or entries necessary
-        return repository.getDir(path, -1, false, null).getRevision();
+        return repository.getDir(parameters.getPath().get(), -1, false, null).getRevision();
     }
 
     public static List<SubversionRevision> getRevisions(URL reposAsURL,
-                                                        String login,
-                                                        String password,
-                                                        String path,
-                                                        Optional<Long> startOp,
-                                                        Optional<Long> endOp)
+                                                        Parameters parameters)
             throws SVNException, URISyntaxException {
         List<SubversionRevision> result = Lists.newArrayList();
         // Init the first revision to get
-        Long start = startOp.isPresent() ? startOp.get() : 1L;
+        Long start = parameters.getStartRevision().get();
+        String path = parameters.getPath().get();
+        String login = parameters.getLogin().get();
+        String password = parameters.getPassword().get();
         // Init the last revision to get
         // (but first, init the repos)
         SVNURL svnUrl;
@@ -125,10 +127,13 @@ public class SubversionCrawler {
                     false
             );
             repository = SVNRepositoryFactory.create(svnUrl);
-            ISVNAuthenticationManager authManager = SVNWCUtil.createDefaultAuthenticationManager(login, password);
+            ISVNAuthenticationManager authManager = SVNWCUtil
+                    .createDefaultAuthenticationManager(login, password);
             repository.setAuthenticationManager( authManager );
         }
-        Long end = endOp.isPresent() ? endOp.get() : repository.getLatestRevision();
+        Long end = parameters.getEndRevision().isPresent() ?
+                parameters.getEndRevision().get() // end crawl at end revision...
+                : repository.getLatestRevision(); // ... or at last revision if absent
         logger.info("Retrieving revisions of {}{} from [{}] to [{}]",
                 reposAsURL, path, start, end);
 
@@ -157,20 +162,71 @@ public class SubversionCrawler {
                 // For each changed path, get the corresponding SVNDocument
                 SVNLogEntryPath svnLogEntryPath = entry.getValue();
                 logger.debug("Extracting entry [{}]", entry.getKey());
-                subversionRevision.addDocument(
-                        new SubversionDocument(
-                                svnLogEntryPath,
-                                repository,
-                                logEntry.getRevision(),
-                                subversionRevision
-                        )
-                );
+                // Add the document if it's not to be filtered
+                boolean toFilter = checkLogEntryPath(parameters,
+                        repository, logEntry.getRevision(), svnLogEntryPath);
+
+                if( !toFilter ) {
+                    subversionRevision.addDocument(
+                            new SubversionDocument(
+                                    svnLogEntryPath,
+                                    repository,
+                                    logEntry.getRevision(),
+                                    subversionRevision
+                            )
+                    );
+                }
             }
             result.add(subversionRevision);
         }
         logger.info("Retrieved revisions of {}{} from [{}] to [{}] : [{}] revisions",
                 reposAsURL, path, start, end, result.size());
         return result;
+    }
+
+    /** Check the entry with the different parameters tests passed to the crawler.
+     *
+     * @param parameters the parameters passed to the crawler
+     * @param repository the repository initialized before
+     * @param revision the revision to consider
+     * @param svnLogEntryPath the entry to test
+     * @return whether or not the entry is to be filtered out
+     * @throws SVNException
+     */
+    private static boolean checkLogEntryPath(Parameters parameters,
+                                             SVNRepository repository,
+                                             Long revision,
+                                             SVNLogEntryPath svnLogEntryPath)
+            throws SVNException {
+        boolean toFilter = false;
+        // Check the patterns
+        for(Pattern pattern:parameters.getPatternsToFilter()) {
+            Matcher matcher = pattern.matcher(svnLogEntryPath.getPath());
+            if( matcher.matches() ) {
+                toFilter = true;
+                logger.warn("Entry [{}] filtered out, matches [{}]",
+                        svnLogEntryPath.getPath(),
+                        pattern);
+                break;
+            }
+        }
+        // Check the file size
+        if( !toFilter && parameters.getMaximumFileSize().isPresent()) {
+            if (svnLogEntryPath.getType() == 'A'
+                    || svnLogEntryPath.getType() == 'M') {
+                SVNDirEntry dirEntry = repository.info(
+                        svnLogEntryPath.getPath(),
+                        revision
+                );
+                if( dirEntry.getSize() > parameters.getMaximumFileSize().get() ) {
+                    toFilter = true;
+                    logger.warn("Entry [{}] filtered out, size too big [{}]",
+                            svnLogEntryPath.getPath(),
+                            dirEntry.getSize());
+                }
+            }
+        }
+        return toFilter;
     }
 
     /**
@@ -189,7 +245,10 @@ public class SubversionCrawler {
         }
 
         // A terrible way to find the entry path relative to the repository root
-        String path = entry.getURL().toString().replaceFirst(entry.getRepositoryRoot().toString(), "");
+        String path = entry.getURL().toString().replaceFirst(
+                entry.getRepositoryRoot().toString(),
+                "");
+
         SVNProperties fileProperties = new SVNProperties();
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 

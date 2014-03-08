@@ -12,7 +12,7 @@ import org.junit.Test;
 import java.io.File;
 
 import static java.lang.Thread.currentThread;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 public class SubversionDocumentTest {
 
@@ -36,13 +36,19 @@ public class SubversionDocumentTest {
     @Test
     public void testDocumentJson() throws Exception {
         System.out.println(document.json());
-        assertNotNull(document.json());
+        assertTrue(
+                "Document must contain Metal Gear",
+                document.json().contains("Metal Gear")
+        );
     }
 
     @Test
     public void testRevisionJson() throws Exception {
         System.out.println(revision.json());
-        assertNotNull(revision.json());
+        assertTrue(
+                "Revision must contain hell",
+                revision.json().contains("hell")
+        );
     }
 
 

@@ -98,4 +98,9 @@ public class SubversionDocument {
                 .create();
         return gson.toJson(this);
     }
+
+    @Override
+    public String toString() {
+        return this.json();
+    }
 }

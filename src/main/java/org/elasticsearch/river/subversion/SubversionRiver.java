@@ -37,6 +37,7 @@ import org.elasticsearch.river.AbstractRiverComponent;
 import org.elasticsearch.river.River;
 import org.elasticsearch.river.RiverName;
 import org.elasticsearch.river.RiverSettings;
+import org.elasticsearch.river.subversion.crawler.Parameters;
 import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.elasticsearch.river.subversion.mapping.IndexedRevisionMapping;
 import org.elasticsearch.river.subversion.mapping.SubversionDocumentMapping;
@@ -65,13 +66,10 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     private String indexName = null;
     private String typeName = null;
     private String repos;
-    private String login;
-    private String password;
-    private String path;
+    private Parameters crawlerParameters;
     private int updateRate;
     private int bulkSize;
     private long indexedRevision;
-    private long startRevision;
     private String indexedRevisionID;
 
     private volatile boolean closed;
@@ -94,21 +92,41 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             @SuppressWarnings("unchecked")
             Map<String, Object> subversionSettings = (Map<String, Object>) settings.settings().get("svn");
 
+            // Crawler settings
             repos = XContentMapValues.nodeStringValue(subversionSettings.get("repos"), null);
-            login = XContentMapValues.nodeStringValue(subversionSettings.get("login"), "anonymous");
-            password = XContentMapValues.nodeStringValue(subversionSettings.get("password"), "password");
-            path = XContentMapValues.nodeStringValue(subversionSettings.get("path"), "/");
+            crawlerParameters = new Parameters.ParametersBuilder()
+                .setLogin(XContentMapValues.nodeStringValue(
+                    subversionSettings.get("login"), null))
+                .setPassword(XContentMapValues.nodeStringValue(
+                    subversionSettings.get("password"), null))
+                .setPath(XContentMapValues.nodeStringValue(
+                    subversionSettings.get("path"), null))
+                // Really NOT happy AT ALL to have to define default values
+                // both here *and* in the Parameters class
+                // because of an implicit cast to integer
+                // in settings.
+                .setStartRevision(XContentMapValues.nodeLongValue(
+                    subversionSettings.get("start_revision"), 1L))
+                .setEndRevision(XContentMapValues.nodeLongValue(
+                    subversionSettings.get("end_revision"), 0L))
+                .setMaximumFileSize(XContentMapValues.nodeLongValue(
+                        subversionSettings.get("maximum_file_size"), 0L))
+                //.setPatternsToFilter((Set<Pattern>) subversionSettings.get("patterns_to_filter"))
+                .setStoreDiffs(XContentMapValues.nodeBooleanValue(
+                    subversionSettings.get("store_diffs"), false))
+            .create();
+            logger.info("Init Subversion river, crawler parameters [{}]", crawlerParameters);
+            // River settings
             updateRate = XContentMapValues.nodeIntegerValue(subversionSettings.get("update_rate"), 15 * 60 * 1000);
             indexName = XContentMapValues.nodeStringValue(subversionSettings.get("index"), riverName.name());
             typeName = XContentMapValues.nodeStringValue(subversionSettings.get("type"), "svn");
             bulkSize = XContentMapValues.nodeIntegerValue(subversionSettings.get("bulk_size"), 200);
-            startRevision = XContentMapValues.nodeLongValue(subversionSettings.get("start_revision"), 1L);
         }
 
         indexedRevisionID ="_indexed_revision_".concat(
                 hf.newHasher()
-                        .putString(repos)
-                        .putString(path)
+                        .putUnencodedChars(repos)
+                        .putUnencodedChars(crawlerParameters.getPath().get())
                         .hash()
                         .toString()
         );
@@ -120,7 +138,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
     public void start() {
         logger.info("Starting Subversion River: repos [{}], path [{}], updateRate [{}], bulksize [{}], " +
                 "startRevision [{}], indexing to [{}]/[{}]",
-                repos, path, updateRate, bulkSize, startRevision, indexName, typeName);
+                repos, crawlerParameters.getPath().get(),
+                updateRate, bulkSize, crawlerParameters.getStartRevision().get(),
+                indexName, typeName);
         try {
             // Wait for the cluster availability
             client.admin().cluster().prepareHealth()
@@ -246,35 +266,37 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
 
                 try {
                     int totalNumberOfActions = 0;
-                    logger.info("Indexing subversion repository : {}/{}", repos, path);
+                    logger.info("Indexing subversion repository : {}/{}", repos, crawlerParameters.getPath().get());
                     URL reposAsURL = new URL(repos);
 
                     indexedRevision = getIndexedRevision();
                     logger.info("Indexed Revision Value [{}]", indexedRevision);
                     List<BulkRequestBuilder> bulks = Lists.newArrayList();
 
-                    long lastRevision = SubversionCrawler.getLatestRevision(reposAsURL, login, password, path);
+                    long lastRevision = SubversionCrawler.getLatestRevision(reposAsURL, crawlerParameters);
                     logger.debug("Checking last revision of repository : {}/{} --> [{}]",
-                            reposAsURL, path, lastRevision);
+                            reposAsURL, crawlerParameters.getPath().get(), lastRevision);
 
                     // if indexed revision is the last revision, we have nothing to do
                     // but if it's not, we index the new subversion updates.
                     if (indexedRevision < lastRevision) {
                         UpdatePolicy updatePolicy = getUpdatePolicy(lastRevision, bulkSize);
+                        crawlerParameters.setStartRevision(Optional.of(updatePolicy.fromRevision));
+                        crawlerParameters.setEndRevision(Optional.of(updatePolicy.toRevision));
 
                         logger.debug("Indexing repository {}/{} from revision [{}] to [{}] incremental [{}]",
-                                reposAsURL, path, updatePolicy.fromRevision, updatePolicy.toRevision, updatePolicy.incremental);
+                            reposAsURL, crawlerParameters.getPath().get(),
+                            crawlerParameters.getStartRevision().get(),
+                            crawlerParameters.getEndRevision().get(),
+                            updatePolicy.incremental
+                        );
 
                         // The total list of subversion documents is partitioned
                         // into smaller lists, of max size bulksize
                         List<SubversionRevision> subversionRevisionsBulk =
                                 SubversionCrawler.getRevisions(
-                                        reposAsURL,
-                                        login,
-                                        password,
-                                        path,
-                                        Optional.of(updatePolicy.fromRevision),
-                                        Optional.of(updatePolicy.toRevision)
+                                    reposAsURL,
+                                    crawlerParameters
                                 );
                         // Send the revisions in bulk to the index
                         BulkRequestBuilder bulk = client.prepareBulk();
@@ -297,8 +319,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         bulks.add(bulk);
                         totalNumberOfActions += bulk.numberOfActions();
                         executeBulksAndSetLastRevision(totalNumberOfActions,
-                                bulks,
-                                updatePolicy.toRevision);
+                            bulks,
+                            crawlerParameters.getEndRevision().get()
+                        );
                     }
 
                 } catch (Exception e) {
@@ -332,7 +355,7 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
             executeBulks(bulks);
         } else {
             logger.debug("Nothing to index (latest revision reached ? [{}]) in {}/{}",
-                    indexedRevision, repos, path);
+                    indexedRevision, repos, crawlerParameters.getPath().get());
         }
     }
 
@@ -363,7 +386,9 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
                         indexedRevision, indexName, e);
                 return;
             }
-            logger.info("Indexed revision of repository : {}{} --> [{}]", repos, path, indexedRevision);
+            logger.info("Indexed revision of repository : {}{} --> [{}]",
+                repos, crawlerParameters.getPath().get(), indexedRevision
+            );
 
             try {
                 logger.info("Execute bulk {} actions", bulk.numberOfActions());
@@ -406,13 +431,13 @@ public class SubversionRiver extends AbstractRiverComponent implements River {
         UpdatePolicy result = new UpdatePolicy();
 
         if( indexedRevision == NOT_INDEXED_REVISION
-                || indexedRevision < startRevision ) {
+                || indexedRevision < crawlerParameters.getStartRevision().get() ) {
             result.incremental = false;
-            if( startRevision == INDEX_HEAD_REVISION) {
+            if( INDEX_HEAD_REVISION.equals(crawlerParameters.getStartRevision().get()) ) {
                 result.fromRevision = lastRevision;
                 result.toRevision = lastRevision;
             } else {
-                result.fromRevision = startRevision;
+                result.fromRevision = crawlerParameters.getStartRevision().get();
                 result.toRevision = lastRevision;
             }
         } else {

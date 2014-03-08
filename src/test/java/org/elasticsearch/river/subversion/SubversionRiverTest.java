@@ -1,6 +1,5 @@
 package org.elasticsearch.river.subversion;
 
-import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchAdminClient;
 import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchClient;
 import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchIndex;
 import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchNode;
@@ -11,7 +10,6 @@ import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsRespon
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.AdminClient;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
@@ -44,9 +42,6 @@ public class SubversionRiverTest {
     @ElasticsearchClient()
     Client client1;
 
-    @ElasticsearchAdminClient
-    AdminClient adminClient;
-
     private static final HashFunction hf = Hashing.md5();
     private static String REPOS;
     private static final String PATH = "/";
@@ -63,8 +58,8 @@ public class SubversionRiverTest {
         INDEXED_REVISION_ID =
                 "_indexed_revision_".concat(
                         hf.newHasher()
-                                .putString(REPOS)
-                                .putString(PATH)
+                                .putUnencodedChars(REPOS)
+                                .putUnencodedChars(PATH)
                                 .hash()
                                 .toString()
                 );
@@ -74,7 +69,7 @@ public class SubversionRiverTest {
     @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test00CreateIndex() {
         // Checks if the index has been created
-        IndicesExistsResponse existResponse = adminClient.indices()
+        IndicesExistsResponse existResponse = client1.admin().indices()
                 .prepareExists(RIVER_KEYWORD)
                 .execute().actionGet();
 
@@ -84,22 +79,26 @@ public class SubversionRiverTest {
     @Test
     @ElasticsearchIndex(indexName = RIVER_KEYWORD)
     public void test10IndexingFromRevision() throws IOException {
-        // Index a new document
-        Map<String, Object> json = new HashMap<String, Object>();
-        json.put("repos",REPOS);
-        json.put("path",PATH);
-        json.put("start_revision",START_REVISION);
-
+        // Index a new reiver metadata to create a river
         XContentBuilder builder = jsonBuilder()
-                .startObject()
+            .startObject()
                 .field("type", "svn")
-                .field("svn",json)
-                .endObject();
+                .startObject("svn")
+                    .field("repos", REPOS)
+                    .field("path", PATH)
+                    .field("start_revision", START_REVISION)
+                .endObject()
+            .endObject();
 
         IndexResponse indexResponse = client1.prepareIndex(RIVER_KEYWORD, "mysvnriver", "_meta")
                 .setSource(builder)
                 .execute()
                 .actionGet();
+
+        // Wait for the cluster availability
+        client1.admin().cluster().prepareHealth()
+            .setWaitForYellowStatus()
+            .execute().actionGet();
 
         Assert.assertTrue("Indexing must return a version >= 1",
                 indexResponse.getVersion() >= 1);
@@ -118,6 +117,11 @@ public class SubversionRiverTest {
                 .field("type", "svn")
                 .field("svn",json)
                 .endObject();
+
+        // Wait for the cluster availability
+        client1.admin().cluster().prepareHealth()
+            .setWaitForYellowStatus()
+            .execute().actionGet();
 
         IndexResponse indexResponse = client1.prepareIndex(RIVER_KEYWORD, "mysvnriver2", "_meta")
                 .setSource(builder)
@@ -152,7 +156,7 @@ public class SubversionRiverTest {
         }
 
         Assert.assertTrue("There should be a watchlist.txt in the repository",
-                searchResponse.getHits().totalHits() > 0);
+                searchResponse.getHits().totalHits() == 3);
     }
 
     @Test
@@ -177,8 +181,8 @@ public class SubversionRiverTest {
                 +"] id ["+response.getId()
                 +"] value ["+result+"]");
 
-        Assert.assertTrue("Indexed Revision must be a number > 0",
-                result > 0);
+        Assert.assertTrue("Indexed Revision must be 7",
+                result == 7L);
     }
 
     @Test
@@ -192,7 +196,7 @@ public class SubversionRiverTest {
         }
 
         ClusterState cs = client1.admin().cluster().prepareState()
-                .setFilterIndices("mysvnriver")
+                .setIndices("mysvnriver")
                 .execute().actionGet().getState();
         IndexMetaData imd = cs.getMetaData().index("mysvnriver");
         MappingMetaData mdd = imd.mapping(SubversionDocument.TYPE_NAME);

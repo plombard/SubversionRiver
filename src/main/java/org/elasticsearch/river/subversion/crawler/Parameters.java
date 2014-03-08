@@ -16,14 +16,169 @@
 
 package org.elasticsearch.river.subversion.crawler;
 
+import com.google.common.base.Objects;
+import com.google.common.base.Optional;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+
 import java.util.Set;
+import java.util.regex.Pattern;
+
 
 /**
  * POJO for the crawler parameters
  */
+@SuppressWarnings("unused")
 public class Parameters {
+    private final Optional<String> login;
+    private transient final Optional<String> password;
+    private final Optional<String> path;
+    private Optional<Long> startRevision;
+    private Optional<Long> endRevision;
+    private final Optional<Long> maximumFileSize;
+    private final ImmutableSet<Pattern> patternsToFilter;
+    private final Optional<Boolean> storeDiffs;
 
-    private Long maximumFileSize;
-    private Set<String> fileExtensionsToFilter;
-    private Set<String> foldersToFilter;
+    public Parameters(final Optional<String> login,
+                      final Optional<String> password,
+                      final Optional<String> path,
+                      final Optional<Long> startRevision,
+                      final Optional<Long> endRevision,
+                      final Optional<Long> maximumFileSize,
+                      final ImmutableSet<Pattern> patternsToFilter,
+                      final Optional<Boolean> storeDiffs) {
+        this.login = login;
+        this.password = password;
+        this.path = path;
+        this.startRevision = startRevision;
+        this.endRevision = endRevision;
+        this.maximumFileSize = maximumFileSize;
+        this.patternsToFilter = patternsToFilter;
+        this.storeDiffs = storeDiffs;
+    }
+
+    @Override
+    public String toString() {
+        return Objects.toStringHelper(this)
+            .add("login", login)
+            .add("path", path)
+            .add("startRevision", startRevision)
+            .add("endRevision", endRevision)
+            .add("maximumFileSize", maximumFileSize)
+            .add("patternsToFilter", Iterables.toString(patternsToFilter))
+            .add("storeDiffs", storeDiffs)
+            .toString();
+    }
+
+    public Optional<String> getLogin() {
+        return login;
+    }
+
+    public Optional<String> getPassword() {
+        return password;
+    }
+
+    public Optional<String> getPath() {
+        return path;
+    }
+
+    public Optional<Long> getStartRevision() {
+        return startRevision;
+    }
+
+    public Optional<Long> getEndRevision() {
+        return endRevision;
+    }
+
+    public Optional<Long> getMaximumFileSize() {
+        return maximumFileSize;
+    }
+
+    public ImmutableSet<Pattern> getPatternsToFilter() {
+        return patternsToFilter;
+    }
+
+    public Optional<Boolean> getStoreDiffs() {
+        return storeDiffs;
+    }
+
+    public void setStartRevision(Optional<Long> startRevision) {
+        this.startRevision = startRevision;
+    }
+
+    public void setEndRevision(Optional<Long> endRevision) {
+        this.endRevision = endRevision;
+    }
+
+    /**
+     * Builder class for Parameters.
+     * Default values are defined here.
+     */
+    public static class ParametersBuilder {
+        private Optional<String> nestedLogin = Optional.of("anonymous");
+        private transient Optional<String> nestedPassword = Optional.of("password");
+        private Optional<String> nestedPath = Optional.of("/");
+        private Optional<Long> nestedStartRevision = Optional.of(1L);
+        private Optional<Long> nestedEndRevision = Optional.absent();
+        private Optional<Long> nestedMaximumFileSize = Optional.absent();
+        private ImmutableSet<Pattern> nestedPatternsToFilter = ImmutableSet.of();
+        private Optional<Boolean> nestedStoreDiffs = Optional.of(false);
+
+        public ParametersBuilder setLogin(final String newLogin) {
+            this.nestedLogin = Optional.fromNullable(newLogin).or(nestedLogin);
+            return this;
+        }
+
+        public ParametersBuilder setPassword(final String newPassword) {
+            this.nestedPassword = Optional.fromNullable(newPassword).or(nestedPassword);
+            return this;
+        }
+
+        public ParametersBuilder setPath(final String newPath) {
+            this.nestedPath = Optional.fromNullable(newPath).or(nestedPath);
+            return this;
+        }
+        
+        public ParametersBuilder setStartRevision(final Long newStartRevision) {
+            if( 1L != newStartRevision ) {
+                this.nestedStartRevision = Optional.fromNullable(newStartRevision).or(nestedStartRevision);
+            }
+            return this;
+        }
+
+        public ParametersBuilder setEndRevision(final Long newEndRevision) {
+            if( 0L != newEndRevision ) {
+                this.nestedEndRevision = Optional.fromNullable(newEndRevision).or(nestedEndRevision);
+            }
+            return this;
+        }
+
+        public ParametersBuilder setMaximumFileSize(final Long newMaximumFileSize) {
+            if(0L != newMaximumFileSize) {
+                this.nestedMaximumFileSize = Optional.fromNullable(newMaximumFileSize).or(nestedMaximumFileSize);
+            }
+            return this;
+        }
+
+        public ParametersBuilder setPatternsToFilter(final Set<Pattern> newPatternsToFilter) {
+            this.nestedPatternsToFilter = ImmutableSet.copyOf(newPatternsToFilter);
+            return this;
+        }
+
+        public ParametersBuilder setStoreDiffs(final Boolean newStoreDiffs) {
+            this.nestedStoreDiffs = Optional.fromNullable(newStoreDiffs).or(nestedStoreDiffs);
+            return this;
+        }
+
+        public Parameters create() {
+            return new Parameters(nestedLogin,
+                nestedPassword,
+                nestedPath,
+                nestedStartRevision,
+                nestedEndRevision,
+                nestedMaximumFileSize,
+                nestedPatternsToFilter,
+                nestedStoreDiffs);
+        }
+    }
 }
