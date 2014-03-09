@@ -1,57 +1,48 @@
 package org.elasticsearch.river.subversion;
 
-import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchClient;
-import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchIndex;
-import com.github.tlrx.elasticsearch.test.annotations.ElasticsearchNode;
-import com.github.tlrx.elasticsearch.test.support.junit.runners.ElasticsearchRunner;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import org.elasticsearch.action.admin.indices.exists.indices.IndicesExistsResponse;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Client;
 import org.elasticsearch.cluster.ClusterState;
 import org.elasticsearch.cluster.metadata.IndexMetaData;
 import org.elasticsearch.cluster.metadata.MappingMetaData;
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.river.subversion.type.SubversionDocument;
 import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.test.ElasticsearchIntegrationTest;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.FixMethodOrder;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.MethodSorters;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
 
 import static java.lang.Thread.currentThread;
-import static java.lang.Thread.sleep;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static org.elasticsearch.test.ElasticsearchIntegrationTest.ClusterScope;
+import static org.elasticsearch.test.ElasticsearchIntegrationTest.Scope;
 
-@RunWith(ElasticsearchRunner.class)
-@ElasticsearchNode
-@FixMethodOrder(MethodSorters.NAME_ASCENDING)
-public class SubversionRiverTest {
+@ClusterScope(scope=Scope.SUITE, numNodes=1)
+public class SubversionRiverTest extends ElasticsearchIntegrationTest {
 
-    @ElasticsearchClient()
-    Client client1;
+    protected ESLogger logger = ESLoggerFactory.getLogger(SubversionRiverTest.class.getName());
 
     private static final HashFunction hf = Hashing.md5();
-    private static String REPOS;
     private static final String PATH = "/";
     private static final Long START_REVISION = 4L;
-    private static final String RIVER_KEYWORD = "_river";
+    private static String REPOS;
     private static String INDEXED_REVISION_ID;
 
     @SuppressWarnings("ConstantConditions")
     @Before
-    public void setUp() throws URISyntaxException {
+    public void setUp() throws Exception {
+        super.setUp();
         REPOS = currentThread().getContextClassLoader()
                 .getResource("TEST_REPOS")
                 .toURI().toString();
@@ -66,20 +57,9 @@ public class SubversionRiverTest {
     }
 
     @Test
-    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
-    public void test00CreateIndex() {
-        // Checks if the index has been created
-        IndicesExistsResponse existResponse = client1.admin().indices()
-                .prepareExists(RIVER_KEYWORD)
-                .execute().actionGet();
-
-        Assert.assertTrue("Index must exist", existResponse.isExists());
-    }
-
-    @Test
-    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
-    public void test10IndexingFromRevision() throws IOException {
-        // Index a new reiver metadata to create a river
+    public void testSubversionRiver() throws IOException {
+        logger.info("-- Lauching Tests --");
+        // Index a new river metadata to create a river
         XContentBuilder builder = jsonBuilder()
             .startObject()
                 .field("type", "svn")
@@ -90,125 +70,101 @@ public class SubversionRiverTest {
                 .endObject()
             .endObject();
 
-        IndexResponse indexResponse = client1.prepareIndex(RIVER_KEYWORD, "mysvnriver", "_meta")
+        logger.info("-- Creating first river (with start revision) --");
+        IndexResponse indexResponse = client().prepareIndex("_river", "mysvnriver", "_meta")
                 .setSource(builder)
                 .execute()
                 .actionGet();
 
         // Wait for the cluster availability
-        client1.admin().cluster().prepareHealth()
+        client().admin().cluster().prepareHealth()
             .setWaitForYellowStatus()
             .execute().actionGet();
 
         Assert.assertTrue("Indexing must return a version >= 1",
                 indexResponse.getVersion() >= 1);
-    }
+        logger.info("-- First river OK --");
 
-    @Test
-    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
-    public void test11IndexingLastRevision() throws IOException {
-        // Index a new document
+        // Create a second river, without start revision
         Map<String, Object> json = new HashMap<String, Object>();
         json.put("repos",REPOS);
         json.put("path",PATH);
 
-        XContentBuilder builder = jsonBuilder()
+        builder = jsonBuilder()
                 .startObject()
                 .field("type", "svn")
                 .field("svn",json)
                 .endObject();
 
         // Wait for the cluster availability
-        client1.admin().cluster().prepareHealth()
+        client().admin().cluster().prepareHealth()
             .setWaitForYellowStatus()
             .execute().actionGet();
 
-        IndexResponse indexResponse = client1.prepareIndex(RIVER_KEYWORD, "mysvnriver2", "_meta")
+        logger.info("-- Creating second river (without start revision) --");
+        indexResponse = client().prepareIndex("_river", "mysvnriver2", "_meta")
                 .setSource(builder)
                 .execute()
                 .actionGet();
 
         Assert.assertTrue("Indexing must return a version >= 1",
                 indexResponse.getVersion() >= 1);
-    }
+        logger.info("-- Second river OK --");
 
-    @Test
-    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
-    public void test20Searching() {
-        // Wait 2s for the indexing to take place.
+        // Wait 3s for the indexing to take place.
         try {
-            sleep(3000L);
+            Thread.sleep(3000L);
         } catch (InterruptedException e) {
             currentThread().interrupt();
         }
 
-        SearchResponse searchResponse = client1.prepareSearch("mysvnriver")
+        logger.info("-- Testing search --");
+        SearchResponse searchResponse = client().prepareSearch("mysvnriver")
                 .setQuery(QueryBuilders.matchPhrasePrefixQuery("name", "watchlist"))
                 .execute()
                 .actionGet();
 
         for(SearchHit hit : searchResponse.getHits()) {
-            System.out.println("Search result index ["+hit.index()
-                    +"] type ["+hit.type()
-                    +"] id ["+hit.id()+"]"
+            logger.info("Search result index [{}] type [{}] id [{}]",
+                    hit.index(), hit.type(), hit.id()
             );
-            System.out.println("Search result source:"+hit.sourceAsString());
+            logger.info("Search result source: [{}]",hit.sourceAsString());
         }
 
         Assert.assertTrue("There should be a watchlist.txt in the repository",
                 searchResponse.getHits().totalHits() == 3);
-    }
+        logger.info("-- Search OK --");
 
-    @Test
-    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
-    public void test21GetIndexedRevision() {
-        // Wait 2s for the indexing to take place.
-        try {
-            sleep(4000L);
-        } catch (InterruptedException e) {
-            currentThread().interrupt();
-        }
-
-        System.out.println("Preparing to get Indexed Revision on index [mysvnriver]" +
-                " with id ["+INDEXED_REVISION_ID+"]");
-        GetResponse response = client1.prepareGet("mysvnriver", "indexed_revision", INDEXED_REVISION_ID)
+        logger.info("-- Testing getIndexedRevision --");
+        logger.info("Preparing to get Indexed Revision on index [mysvnriver] with id [{}]",
+                INDEXED_REVISION_ID);
+        GetResponse response = client().prepareGet("mysvnriver", "indexed_revision",
+                INDEXED_REVISION_ID)
                 .setFields("revision")
                 .execute()
                 .actionGet();
         Long result = (Long) response.getField("revision").getValue();
-        System.out.println("Get Indexed Revision Response index ["+response.getIndex()
-                +"] type ["+response.getType()
-                +"] id ["+response.getId()
-                +"] value ["+result+"]");
+        logger.info("Get Indexed Revision Response index [{}] type [{}] id [{}] value [{}]",
+                response.getIndex(), response.getType(), response.getId(), result);
 
         Assert.assertTrue("Indexed Revision must be 7",
                 result == 7L);
-    }
+        logger.info("-- getIndexedRevision OK --");
 
-    @Test
-    @ElasticsearchIndex(indexName = RIVER_KEYWORD)
-    public void test22GetMapping() throws IOException {
-        // Wait 2s for the indexing to take place.
-        try {
-            sleep(4000L);
-        } catch (InterruptedException e) {
-            currentThread().interrupt();
-        }
-
-        ClusterState cs = client1.admin().cluster().prepareState()
+        logger.info("-- Testing getMapping --");
+        ClusterState cs = client().admin().cluster().prepareState()
                 .setIndices("mysvnriver")
                 .execute().actionGet().getState();
         IndexMetaData imd = cs.getMetaData().index("mysvnriver");
         MappingMetaData mdd = imd.mapping(SubversionDocument.TYPE_NAME);
 
-        System.out.println("Get Mapping"
-                +" type ["+mdd.type()
-                +"] id ["+mdd.id()
-                +"] source ["+mdd.source()+"]"
+        logger.info("Get Mapping type [{}] id [{}] source [{}]",
+                mdd.type(), mdd.id(), mdd.source()
         );
         boolean found = mdd.source().string().contains("not_analyzed");
 
         Assert.assertTrue("Mapping for SubversionDocument must contain not_analyzed", found);
+        logger.info("-- getMapping OK --");
     }
 
 }

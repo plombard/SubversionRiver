@@ -1,5 +1,7 @@
 package org.elasticsearch.river.subversion;
 
+import org.elasticsearch.common.logging.ESLogger;
+import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.river.subversion.crawler.Parameters;
 import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.junit.Assert;
@@ -17,6 +19,9 @@ import java.net.URL;
  */
 public class SubversionCrawlerHTTPTest {
 
+    protected ESLogger logger = ESLoggerFactory.getLogger(
+            SubversionCrawlerHTTPTest.class.getName());
+
     private URL reposAsURL;
     private Parameters parameters;
 
@@ -33,8 +38,8 @@ public class SubversionCrawlerHTTPTest {
     public void testGetLatestRevision() throws SVNException, URISyntaxException {
         long revision = SubversionCrawler.getLatestRevision(reposAsURL, parameters);
 
-        System.out.println("Latest revision of "+ reposAsURL +parameters.getPath().get()
-            +" == "+revision
+        logger.info("Latest revision of [{}] is[{}]",
+            reposAsURL +parameters.getPath().get(), revision
         );
         Assert.assertTrue(revision > 0);
     }
