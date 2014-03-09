@@ -163,16 +163,17 @@ public class SubversionCrawler {
                 SVNLogEntryPath svnLogEntryPath = entry.getValue();
                 logger.debug("Extracting entry [{}]", entry.getKey());
                 // Add the document if it's not to be filtered
-                boolean toFilter = checkLogEntryPath(parameters,
+                LogEntryFilter toFilter = checkLogEntryPath(parameters,
                         repository, logEntry.getRevision(), svnLogEntryPath);
 
-                if( !toFilter ) {
+                if( !toFilter.crawlingToBePrevented() ) {
                     subversionRevision.addDocument(
                             new SubversionDocument(
                                     svnLogEntryPath,
                                     repository,
                                     logEntry.getRevision(),
-                                    subversionRevision
+                                    subversionRevision,
+                                    toFilter
                             )
                     );
                 }
@@ -190,28 +191,28 @@ public class SubversionCrawler {
      * @param repository the repository initialized before
      * @param revision the revision to consider
      * @param svnLogEntryPath the entry to test
-     * @return whether or not the entry is to be filtered out
+     * @return LogEntryFilter whether or not, and how, the entry is to be filtered out
      * @throws SVNException
      */
-    private static boolean checkLogEntryPath(Parameters parameters,
+    private static LogEntryFilter checkLogEntryPath(Parameters parameters,
                                              SVNRepository repository,
                                              Long revision,
                                              SVNLogEntryPath svnLogEntryPath)
             throws SVNException {
-        boolean toFilter = false;
+        LogEntryFilter result;
         // Check the patterns
         for(Pattern pattern:parameters.getPatternsToFilter()) {
             Matcher matcher = pattern.matcher(svnLogEntryPath.getPath());
             if( matcher.matches() ) {
-                toFilter = true;
-                logger.warn("Entry [{}] filtered out, matches [{}]",
+                result = new LogEntryFilter(true,true,"matches ["+pattern.toString()+"]");
+                logger.warn("Entry [{}] filtered out : [{}]",
                         svnLogEntryPath.getPath(),
-                        pattern);
-                break;
+                        result.getReason().get());
+                return result;
             }
         }
         // Check the file size
-        if( !toFilter && parameters.getMaximumFileSize().isPresent()) {
+        if(parameters.getMaximumFileSize().isPresent()) {
             if (svnLogEntryPath.getType() == 'A'
                     || svnLogEntryPath.getType() == 'M') {
                 SVNDirEntry dirEntry = repository.info(
@@ -219,14 +220,15 @@ public class SubversionCrawler {
                         revision
                 );
                 if( dirEntry.getSize() > parameters.getMaximumFileSize().get() ) {
-                    toFilter = true;
-                    logger.warn("Entry [{}] filtered out, size too big [{}]",
+                    result = new LogEntryFilter(true,false,"size too big ["+dirEntry.getSize()+"]");
+                    logger.warn("Entry [{}] filtered out : [{}] ",
                             svnLogEntryPath.getPath(),
-                            dirEntry.getSize());
+                            result.getReason().get());
+                    return result;
                 }
             }
         }
-        return toFilter;
+        return new LogEntryFilter(false, false, null);
     }
 
     /**

@@ -19,6 +19,7 @@ package org.elasticsearch.river.subversion.type;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.annotations.Expose;
+import org.elasticsearch.river.subversion.crawler.LogEntryFilter;
 import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
 import org.tmatesoft.svn.core.SVNDirEntry;
 import org.tmatesoft.svn.core.SVNException;
@@ -54,7 +55,8 @@ public class SubversionDocument {
     public SubversionDocument(SVNLogEntryPath entryPath,
                               SVNRepository repository,
                               long revisionNumber,
-                              SubversionRevision revision)
+                              SubversionRevision revision,
+                              LogEntryFilter toFilter)
             throws SVNException {
         this.path = entryPath.getPath().substring(0, entryPath.getPath().lastIndexOf("/"));
         this.fullname = entryPath.getPath();
@@ -78,7 +80,11 @@ public class SubversionDocument {
                     revisionNumber
             );
             // ...and init a SubversionDocument to add to the revision
-            this.content = SubversionCrawler.getContent(dirEntry, repository);
+            if (toFilter.contentToBeFiltered()) {
+                this.content = toFilter.getReason().get();
+            } else {
+                this.content = SubversionCrawler.getContent(dirEntry, repository);
+            }
             this.name = dirEntry.getName();
             this.size = dirEntry.getSize();
         } else {

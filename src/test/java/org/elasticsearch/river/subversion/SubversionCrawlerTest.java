@@ -3,6 +3,7 @@ package org.elasticsearch.river.subversion;
 import com.google.common.collect.Sets;
 import org.elasticsearch.river.subversion.crawler.Parameters;
 import org.elasticsearch.river.subversion.crawler.SubversionCrawler;
+import org.elasticsearch.river.subversion.type.SubversionDocument;
 import org.elasticsearch.river.subversion.type.SubversionRevision;
 import org.junit.Assert;
 import org.junit.Before;
@@ -119,10 +120,14 @@ public class SubversionCrawlerTest {
                 .create()
         );
         int count = 0;
-        for(SubversionRevision svnRevision:result) {
-            count += svnRevision.getDocuments().size();
+        for (SubversionRevision svnRevision:result) {
+            for (SubversionDocument svnDocument : svnRevision.getDocuments()) {
+                if (svnDocument.json().contains("size too big")) {
+                    count++;
+                }
+            }
         }
-        Assert.assertTrue("We should get 9 documents after filter",count == 9);
+        Assert.assertTrue("We should get 2 documents filtered for being oversized", count == 2);
     }
 
     @Test
