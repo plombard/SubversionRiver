@@ -81,23 +81,35 @@ public class SubversionCrawlerTest {
     }
 
     @Test
-    public void testGetRevisionsFileNotFound() throws URISyntaxException {
-        String errorMessage = "";
+    public void testGetRevisionsFileNotFound() throws URISyntaxException, SVNException {
+        List<SubversionRevision> revisions;
 
-        try {
-            getRevisions(
+        revisions = getRevisions(
                 reposAsURL,
                 new Parameters.ParametersBuilder()
-                    .setPath("/module2/trunk/")
-                    .setEndRevision(1L)
-                .create()
-            );
-        } catch (SVNException e) {
-            errorMessage = e.getMessage();
-        }
+                        .setPath("/module2/trunk/")
+                        .setEndRevision(1L)
+                        .create()
+        );
 
-        // "E160013" is svnkit error code for file not found
-        Assert.assertTrue(errorMessage.contains("E160013"));
+        // check that the search range has been reduced to zero
+        Assert.assertTrue(revisions.isEmpty());
+    }
+
+    @Test
+    public void testGetRevisionsPathDeleted() throws URISyntaxException, SVNException {
+        List<SubversionRevision> revisions;
+
+        revisions = getRevisions(
+                reposAsURL,
+                new Parameters.ParametersBuilder()
+                        .setPath("/module2/trunk/")
+                        .setEndRevision(8L)
+                        .create()
+        );
+
+        // TODO : check that the revisions are returned up to 7
+        Assert.assertTrue(revisions.isEmpty());
     }
 
     @Test

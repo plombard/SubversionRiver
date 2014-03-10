@@ -131,9 +131,15 @@ public class SubversionCrawler {
                     .createDefaultAuthenticationManager(login, password);
             repository.setAuthenticationManager( authManager );
         }
-        Long end = parameters.getEndRevision().isPresent() ?
-                parameters.getEndRevision().get() // end crawl at end revision...
-                : repository.getLatestRevision(); // ... or at last revision if absent
+
+        // Attempt to deal with the non-exitence of the path at the specified revision
+        Long end = sanitizeEndRevision(repository, path, parameters);
+        if (end < 0) {
+            // The path likely didn't exist at any revision in the range
+            logger.warn("Path [{}] likely didn't exist between revision [{}] to [{}]",
+                    path, parameters.getStartRevision().get(), parameters.getEndRevision().get());
+            return result;
+        }
         logger.info("Retrieving revisions of {}{} from [{}] to [{}]",
                 reposAsURL, path, start, end);
 
@@ -182,6 +188,81 @@ public class SubversionCrawler {
         }
         logger.info("Retrieved revisions of {}{} from [{}] to [{}] : [{}] revisions",
                 reposAsURL, path, start, end, result.size());
+        return result;
+    }
+
+    /**
+     * Attempt to get a sensible end revision, ie. the youngest revision in the range
+     * where the path exists
+     * @param repository the repository initialized before
+     * @param path the path to look for
+     * @param parameters the parameters for start/end revisions
+     * @return a sensible end revision, or an invalid (<0) one if none found
+     * @throws SVNException
+     */
+    private static Long sanitizeEndRevision(SVNRepository repository,
+                                            String path,
+                                            Parameters parameters)
+            throws SVNException {
+        Long result = parameters.getEndRevision().isPresent() ?
+                parameters.getEndRevision().get() // end crawl at end revision...
+                : repository.getLatestRevision();
+        // If path is the repository root, exit immediately, no need to test further
+        if ("/".equalsIgnoreCase(path)) {
+            return result;
+        }
+        // Ensure that the path exists at this end revision,
+        // reducing the range to index if necessary.
+        SVNDirEntry entry = repository.info(path, result);
+        // If entry is not null, it's okay, we have confirmation that
+        // the path exists at the specified revision, let's roll
+        if (entry != null) {
+            return result;
+        } else {
+            // If entry is null, there are 2 possibilities
+            // 1. The path has been deleted at one point in the revision range
+            // 2. The path doesn't even exist in the revision range
+            // Extracting the history of the path would then mean
+            // extracting the history to the last revision where it existed
+            return getLastValidRevision(repository,
+                    path,
+                    parameters.getStartRevision().get(),
+                    result);
+        }
+    }
+
+    /**
+     * Try to find the last valid revision, ie. the younger revision where the path is garanteed
+     * to have existed
+     *
+     * @param repository the repository initialized before
+     * @param path the path to look for
+     * @param startRevision  the oldest revision
+     * @param endRevision  the youngest revision
+     * @return a revision where the path exists, or an invalid one (<0) if none found
+     * @throws SVNException
+     */
+    private static Long getLastValidRevision(SVNRepository repository,
+                                             String path,
+                                             Long startRevision,
+                                             Long endRevision)
+            throws SVNException {
+        Long result = -1L;
+        Long revision = endRevision;
+        if (startRevision >= endRevision) {
+            logger.error("Start Revision [{}] must be older than End Revision [{}]",
+                    startRevision, endRevision);
+            return result;
+        }
+        // Iterate backward through the revisions to find one when the path existed
+        while (revision >= startRevision) {
+            SVNDirEntry entry = repository.info(path, revision);
+            if (entry != null) {
+                result = revision;
+                break;
+            }
+            revision--;
+        }
         return result;
     }
 
