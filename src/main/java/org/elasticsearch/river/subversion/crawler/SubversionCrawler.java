@@ -168,10 +168,11 @@ public class SubversionCrawler {
                 // For each changed path, get the corresponding SVNDocument
                 SVNLogEntryPath svnLogEntryPath = entry.getValue();
                 logger.debug("Extracting entry [{}]", entry.getKey());
-                // Add the document if it's not to be filtered
+                // Check if it's not to be filtered
                 LogEntryFilter toFilter = checkLogEntryPath(parameters,
                         repository, logEntry.getRevision(), svnLogEntryPath);
 
+                // Add the doc, unless instructed not to.
                 if( !toFilter.crawlingToBePrevented() ) {
                     subversionRevision.addDocument(
                             new SubversionDocument(

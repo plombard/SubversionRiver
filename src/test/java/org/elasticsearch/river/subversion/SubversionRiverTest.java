@@ -147,8 +147,8 @@ public class SubversionRiverTest extends ElasticsearchIntegrationTest {
         logger.info("Get Indexed Revision Response index [{}] type [{}] id [{}] value [{}]",
                 response.getIndex(), response.getType(), response.getId(), result);
 
-        Assert.assertTrue("Indexed Revision must be 7",
-                result == 7L);
+        Assert.assertTrue("Indexed Revision must be 8",
+                result == 8L);
         logger.info("-- getIndexedRevision OK --");
 
         logger.info("-- Testing getMapping --");

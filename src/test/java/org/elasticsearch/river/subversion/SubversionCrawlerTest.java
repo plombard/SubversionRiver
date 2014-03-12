@@ -20,6 +20,7 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.List;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 import static org.elasticsearch.river.subversion.crawler.SubversionCrawler.getContent;
@@ -51,8 +52,8 @@ public class SubversionCrawlerTest {
         for(SubversionRevision svnRevision:result) {
             count += svnRevision.getDocuments().size();
         }
-        Assert.assertTrue("This repository has normally 7 revisions",result.size() == 7);
-        Assert.assertTrue("This repository history has normally 11 documents",count == 11);
+        Assert.assertTrue("This repository has normally 8 revisions",result.size() == 8);
+        Assert.assertTrue("This repository history has normally 12 documents",count == 12);
     }
 
     @Test
@@ -64,7 +65,7 @@ public class SubversionCrawlerTest {
             .create()
         );
 
-        Assert.assertTrue("This repository has normally 5 revisions",result.size() == 5);
+        Assert.assertTrue("This path features normally 5 revisions",result.size() == 5);
     }
 
     @Test
@@ -103,13 +104,14 @@ public class SubversionCrawlerTest {
         revisions = getRevisions(
                 reposAsURL,
                 new Parameters.ParametersBuilder()
-                        .setPath("/module2/trunk/")
+                        // file was added in rev2 ans deleted in rev7
+                        .setPath("/module2/trunk/playlist.txt")
                         .setEndRevision(8L)
                         .create()
         );
-
-        // TODO : check that the revisions are returned up to 7
-        Assert.assertTrue(revisions.isEmpty());
+        System.out.println(Objects.toString(revisions));
+        // We expect 2 revisions : rev2 and 7
+        Assert.assertEquals(revisions.size(), 2);
     }
 
     @Test
@@ -119,8 +121,8 @@ public class SubversionCrawlerTest {
                     reposAsURL,
                     new Parameters.ParametersBuilder().create()
                 );
-
-        Assert.assertTrue(revision == 7L);
+        System.out.println("latest revision :"+revision);
+        Assert.assertTrue(revision == 8L);
     }
 
     @Test

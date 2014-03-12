@@ -1,0 +1,49 @@
+PLAIN
+END
+ENDREP
+id: 2-2.0.r8/17
+type: dir
+pred: 2-2.0.r7/382
+count: 2
+text: 8 0 4 4 2d2977d1c96f487abe4a1e202dd03b4e
+cpath: /module2/trunk
+copyroot: 0 /
+
+PLAIN
+K 5
+trunk
+V 15
+dir 2-2.0.r8/17
+END
+ENDREP
+id: 0-2.0.r8/203
+type: dir
+pred: 0-2.0.r7/574
+count: 2
+text: 8 155 35 35 2e9be470458204fd81a9ab49f82e8131
+cpath: /module2
+copyroot: 0 /
+
+PLAIN
+K 7
+module1
+V 16
+dir 0-1.0.r6/508
+K 7
+module2
+V 16
+dir 0-2.0.r8/203
+END
+ENDREP
+id: 0.0.r8/425
+type: dir
+pred: 0.0.r7/796
+count: 8
+text: 8 340 72 72 ab55a1440b3f6c446064239f4cbfed6f
+cpath: /
+copyroot: 0 /
+
+4-2.0.r7/121 delete-file false false /module2/trunk/playlist.txt
+
+
+425 551
